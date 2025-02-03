@@ -1,19 +1,8 @@
 <?php
 /*
-Copyright (C) 2014, Siemens AG
+ SPDX-FileCopyrightText: © 2014 Siemens AG
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-version 2 as published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ SPDX-License-Identifier: GPL-2.0-only
 */
 
 namespace Fossology\Lib\Plugin;
@@ -22,12 +11,12 @@ use Exception;
 use Fossology\Lib\Auth\Auth;
 use Fossology\Lib\UI\Component\Menu;
 use Fossology\Lib\UI\Component\MicroMenu;
+use Mockery as M;
 use Monolog\Logger;
 use Symfony\Component\DependencyInjection\Container;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Session\Session;
-use Mockery as M;
 
 class TestPlugin extends DefaultPlugin
 {
@@ -42,7 +31,7 @@ class TestPlugin extends DefaultPlugin
   {
     parent::__construct($title, $parameters);
 
-    $this->response = Response::create();
+    $this->response = new Response();
   }
 
   /**
@@ -100,6 +89,8 @@ class DefaultPluginTest extends \PHPUnit\Framework\TestCase
 
   protected function setUp() : void
   {
+    global $SysConf;
+    $SysConf = [];
     $this->session = M::mock('Symfony\Component\HttpFoundation\Session\SessionInterface');
 
     global $container;

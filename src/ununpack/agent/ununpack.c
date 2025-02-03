@@ -1,22 +1,11 @@
-/*******************************************************************
+/*
  Ununpack: The universal unpacker.
 
- Copyright (C) 2007-2013 Hewlett-Packard Development Company, L.P.
- Copyright (C) 2015 Siemens AG
+ SPDX-FileCopyrightText: © 2007-2013 Hewlett-Packard Development Company, L.P.
+ SPDX-FileCopyrightText: © 2015,2023 Siemens AG
 
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- version 2 as published by the Free Software Foundation.
-
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License along
- with this program; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- *******************************************************************/
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 /**
  * \dir
  * \brief Source code for ununpack agent
@@ -67,6 +56,9 @@
  * | application/jar | unzip |
  * | application/java-archive | unzip |
  * | application/x-dosexec | 7z |
+ * | application/zstd | zstd |
+ * | application/x-lz4 | zstd |
+ * | application/x-lzma | zstd |
  *
  * \section ununpackactions Supported actions
  * Usage: \code ununpack [options] file [file [file...]] \endcode
@@ -293,7 +285,6 @@ int	main(int argc, char *argv[])
     }
     else
       strcpy(uploadtree_tablename, "uploadtree_a");
-
   }
 
   CheckCommands(Quiet);

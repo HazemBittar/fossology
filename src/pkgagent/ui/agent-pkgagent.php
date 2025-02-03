@@ -1,21 +1,10 @@
 <?php
-/***********************************************************
- Copyright (C) 2009-2013 Hewlett-Packard Development Company, L.P.
- Copyright (C) 2015, Siemens AG
+/*
+ SPDX-FileCopyrightText: © 2009-2013 Hewlett-Packard Development Company, L.P.
+ SPDX-FileCopyrightText: © 2015 Siemens AG
 
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- version 2 as published by the Free Software Foundation.
-
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License along
- with this program; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ***********************************************************/
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 use Fossology\Lib\Plugin\AgentPlugin;
 
@@ -29,9 +18,12 @@ use Fossology\Lib\Plugin\AgentPlugin;
  */
 class PkgAgentPlugin extends AgentPlugin
 {
+  /** @var pkgagentDesc */
+  private $pkgagentDesc = "Parse package headers. for example if files are rpm package listed, display their package information";
+
   public function __construct() {
     $this->Name = "agent_pkgagent";
-    $this->Title = _("Package Analysis (Parse package headers)");
+    $this->Title = _("Package Analysis <img src=\"images/info_16.png\" data-toggle=\"tooltip\" title=\"".$this->pkgagentDesc."\" class=\"info-bullet\"/>");
     $this->AgentName = "pkgagent";
 
     parent::__construct();

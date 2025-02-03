@@ -1,44 +1,57 @@
-/***************************************************************
- Copyright (C) 2019 Siemens AG
+/*
+ SPDX-FileCopyrightText: © 2019 Siemens AG
  Author: Gaurav Mishra <mishra.gaurav@siemens.com>
 
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- version 2 as published by the Free Software Foundation.
-
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License along
- with this program; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-
- ***************************************************************/
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 #include "json_writer.h"
 #include "nomos.h"
 #include "nomos_utils.h"
 #include <json-c/json.h>
 
+static void writeHighlightInfoToJson(GArray* theMatches, json_object *resultsArray) {
+    int currentLicence;
+    for (currentLicence = 0; currentLicence < theMatches->len; ++currentLicence) {
+      LicenceAndMatchPositions* theLicence = getLicenceAndMatchPositions(theMatches, currentLicence);
+
+      int highl;
+      for (highl = 0; highl < theLicence->matchPositions->len; ++highl) {
+        MatchPositionAndType* ourMatchv = getMatchfromHighlightInfo(theLicence->matchPositions, highl);
+        json_object *result = json_object_new_object();
+        json_object_object_add(result, "license", json_object_new_string(theLicence->licenceName));
+        json_object_object_add(result, "start", json_object_new_int(ourMatchv->start));
+        json_object_object_add(result, "end", json_object_new_int(ourMatchv->end));
+        json_object_object_add(result, "len", json_object_new_int(ourMatchv->end - ourMatchv->start));
+        json_object_array_add(resultsArray, result);
+      }
+    }
+}
+
 void writeJson()
 {
   char realPathOfTarget[PATH_MAX];
   json_object *result = json_object_new_object();
+  json_object *resultsArray = json_object_new_array();
   json_object *licenses = json_object_new_array();
   json_object *fileLocation = NULL;
   json_object *aLicense = NULL;
   size_t i = 0;
-
-  parseLicenseList();
-  while (cur.licenseList[i] != NULL)
-  {
-    aLicense = json_object_new_string(cur.licenseList[i]);
-    cur.licenseList[i] = NULL;
-    json_object_array_add(licenses, aLicense);
-    ++i;
+  
+  if (optionIsSet(OPTS_HIGHLIGHT_STDOUT)) {
+    writeHighlightInfoToJson(cur.theMatches, resultsArray);
   }
+  else{
+    parseLicenseList();
+    while (cur.licenseList[i] != NULL)
+    {
+      aLicense = json_object_new_string(cur.licenseList[i]);
+      cur.licenseList[i] = NULL;
+      json_object_array_add(licenses, aLicense);
+      ++i;
+    }
+  }
+
   if (optionIsSet(OPTS_LONG_CMD_OUTPUT)
       && realpath(cur.targetFile, realPathOfTarget))
   {
@@ -49,7 +62,13 @@ void writeJson()
     fileLocation = json_object_new_string(basename(cur.targetFile));
   }
   json_object_object_add(result, "file", fileLocation);
-  json_object_object_add(result, "licenses", licenses);
+  if (optionIsSet(OPTS_HIGHLIGHT_STDOUT)){
+    json_object_object_add(result, "licenses", resultsArray);
+  }
+  else{
+    json_object_object_add(result, "licenses", licenses);
+  }
+
   char *prettyJson = unescapePathSeparator(
     json_object_to_json_string_ext(result, JSON_C_TO_STRING_PRETTY));
   sem_wait(mutexJson);

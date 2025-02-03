@@ -1,19 +1,8 @@
 <?php
 /*
-Copyright (C) 2014-2015, Siemens AG
+ SPDX-FileCopyrightText: © 2014-2015 Siemens AG
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-version 2 as published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ SPDX-License-Identifier: GPL-2.0-only
 */
 
 namespace Fossology\Lib\BusinessRules;
@@ -156,7 +145,7 @@ class ClearingDecisionProcessor
    * @param boolean $global
    * @param array Additional event ids to include, indexed by licenseId
    */
-  public function makeDecisionFromLastEvents(ItemTreeBounds $itemBounds, $userId, $groupId, $type, $global, $additionalEventIds = array())
+  public function makeDecisionFromLastEvents(ItemTreeBounds $itemBounds, $userId, $groupId, $type, $global, $additionalEventIds = array(), $autoConclude = false)
   {
     if ($type < self::NO_LICENSE_KNOWN_DECISION_TYPE) {
       return;
@@ -180,7 +169,8 @@ class ClearingDecisionProcessor
         }
       }
     } else {
-      $clearingEventIds = $this->insertClearingEventsForAgentFindings($itemBounds, $userId, $groupId, false, ClearingEventTypes::AGENT, $previousEvents);
+      $clearingEventIds = $this->insertClearingEventsForAgentFindings($itemBounds, $userId, $groupId, false,
+        $autoConclude ? ClearingEventTypes::AUTO : ClearingEventTypes::AGENT, $previousEvents);
       foreach ($previousEvents as $clearingEvent) {
         $clearingEventIds[$clearingEvent->getLicenseId()] = $clearingEvent->getEventId();
       }

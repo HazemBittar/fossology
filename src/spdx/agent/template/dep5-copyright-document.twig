@@ -1,0 +1,27 @@
+{# SPDX-FileCopyrightText: © 2015 Siemens AG
+
+   SPDX-License-Identifier: FSFAP
+#}
+Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/       
+Upstream-Name: {{ documentName }}
+Upstream-Contact: 
+Source: 
+Disclaimer: <text> This file is offered as-is, without any warranty. </text>
+Copyright: 
+License: {{ mainLicense }}
+Comment: {% if licenseComments %}
+ {{ licenseComments }}
+ .
+
+{% endif %} created on {{ 'now'|date('Y-m-d\\TH:i:s\\Z') }} with FOSSology
+{# File Paragraphes: #}
+{{ packageNodes }}
+{# Stand-alone License Paragraphes: #}
+{% for licenseData in licenseTexts %}{% if licenseData.id starts with 'LicenseRef-' %}
+
+License: {{ licenseData.id }}
+ {{ licenseData.text|replace({'\f':''})|replace({'\r\n':'\n'})
+                                       |replace({'\n\n':'\n.\n'})
+                                       |replace({'\n\n':'\n.\n'})
+                                       |replace({'\n':'\n '}) }}
+{% endif %}{% endfor %}

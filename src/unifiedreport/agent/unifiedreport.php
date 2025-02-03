@@ -1,21 +1,10 @@
 <?php
 /*
  Author: Shaheem Azmal, anupam.ghosh@siemens.com
- Copyright (C) 2017-2018, Siemens AG
+ SPDX-FileCopyrightText: © 2017-2018 Siemens AG
 
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- version 2 as published by the Free Software Foundation.
-
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License along
- with this program; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- */
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 /**
  * @dir
  * @brief Source for Unified report agent
@@ -34,7 +23,7 @@
  *     -# Common obligations, restrictions and risks
  *     -# Additional obligations, restrictions & risks beyond common rules
  * -# Acknowledgements
- *     Every acknowledgements entered by the user during clearing.
+ *     Every acknowledgement entered by the user during clearing.
  * -# Export Restrictions
  *     Contains findings of ECC.
  * -# Notes
@@ -101,19 +90,21 @@ define("REPORT_AGENT_NAME", "unifiedreport");
 use Fossology\Lib\Agent\Agent;
 use Fossology\Lib\Dao\UploadDao;
 use Fossology\Lib\Dao\UserDao;
-use Fossology\Lib\Report\LicenseClearedGetter;
-use Fossology\Lib\Report\LicenseIrrelevantGetter;
-use Fossology\Lib\Report\LicenseDNUGetter;
-use Fossology\Lib\Report\LicenseNonFunctionalGetter;
 use Fossology\Lib\Report\BulkMatchesGetter;
-use Fossology\Lib\Report\XpClearedGetter;
+use Fossology\Lib\Report\LicenseClearedGetter;
+use Fossology\Lib\Report\LicenseDNUGetter;
+use Fossology\Lib\Report\LicenseIrrelevantGetter;
 use Fossology\Lib\Report\LicenseMainGetter;
+use Fossology\Lib\Report\LicenseNonFunctionalGetter;
 use Fossology\Lib\Report\ObligationsGetter;
 use Fossology\Lib\Report\OtherGetter;
-use PhpOffice\PhpWord\PhpWord;
+use Fossology\Lib\Report\XpClearedGetter;
 use PhpOffice\PhpWord\Element\Section;
 use PhpOffice\PhpWord\IOFactory;
-use PhpOffice\PhpWord\Shared\Html;
+use PhpOffice\PhpWord\PhpWord;
+use PhpOffice\PhpWord\SimpleType\JcTable;
+use PhpOffice\PhpWord\Style\Table;
+use Fossology\Lib\Report\ReportUtils;
 
 include_once(__DIR__ . "/version.php");
 include_once(__DIR__ . "/reportStatic.php");
@@ -135,12 +126,18 @@ class UnifiedReport extends Agent
    */
   private $licenseMainGetter;
 
-  /** @var cpClearedGetter $cpClearedGetter
+  /** @var XpClearedGetter $cpClearedGetter
    * Copyright clearance object
    */
   private $cpClearedGetter;
 
-  /** @var eccClearedGetter $eccClearedGetter
+
+  /** @var XpClearedGetter $ipraClearedGetter
+   * IP clearance object
+   */
+  private $ipraClearedGetter;
+
+  /** @var XpClearedGetter $eccClearedGetter
    * ECC clearance object
    */
   private $eccClearedGetter;
@@ -165,15 +162,20 @@ class UnifiedReport extends Agent
    */
   private $bulkMatchesGetter;
 
-  /** @var licenseIrrelevantCommentGetter $licenseIrrelevantCommentGetter
+  /** @var LicenseIrrelevantGetter $licenseIrrelevantCommentGetter
    * licenseIrrelevantCommentGetter object
    */
   private $licenseIrrelevantCommentGetter;
 
-  /** @var obligationsGetter $obligationsGetter
+  /** @var ObligationsGetter $obligationsGetter
    * obligationsGetter object
    */
   private $obligationsGetter;
+
+  /** @var ReportUtils $reportutils
+   * ReportUtils object
+   */
+  private $reportutils;
 
   /** @var OtherGetter $otherGetter
    * otherGetter object
@@ -201,7 +203,9 @@ class UnifiedReport extends Agent
   private $tablestyle = array("borderSize" => 2,
                               "name" => "Arial",
                               "borderColor" => "000000",
-                              "cellSpacing" => 5
+                              "cellSpacing" => 5,
+                              "alignment"   => JcTable::START,
+                              "layout"      => Table::LAYOUT_FIXED
                              );
 
   /** @var array $subHeadingStyle
@@ -242,6 +246,7 @@ class UnifiedReport extends Agent
   function __construct()
   {
     $this->cpClearedGetter = new XpClearedGetter("copyright", "statement");
+    $this->ipraClearedGetter = new XpClearedGetter("ipra", "ipra");
     $this->eccClearedGetter = new XpClearedGetter("ecc", "ecc");
     $this->licenseClearedGetter = new LicenseClearedGetter();
     $this->licenseMainGetter = new LicenseMainGetter();
@@ -254,12 +259,14 @@ class UnifiedReport extends Agent
     $this->licenseNonFunctionalCommentGetter = new LicenseNonFunctionalGetter(false);
     $this->otherGetter = new OtherGetter();
     $this->obligationsGetter = new ObligationsGetter();
+    $this->reportutils = new ReportUtils();
 
     parent::__construct(REPORT_AGENT_NAME, AGENT_VERSION, AGENT_REV);
 
     $this->uploadDao = $this->container->get("dao.upload");
     $this->userDao = $this->container->get("dao.user");
   }
+
 
   /**
    * @copydoc Fossology::Lib::Agent::Agent::processUploadId()
@@ -316,6 +323,9 @@ class UnifiedReport extends Agent
     $ecc = $this->eccClearedGetter->getCleared($uploadId, $this, $groupId, true, "ecc", false);
     $this->heartbeat(empty($ecc) ? 0 : count($ecc["statements"]));
 
+    $ipra = $this->ipraClearedGetter->getCleared($uploadId, $this, $groupId, true, "ipra", false);
+    $this->heartbeat(empty($ip) ? 0 : count($ip["statements"]));
+
     $otherStatement = $this->otherGetter->getReportData($uploadId);
     $this->heartbeat(empty($otherStatement) ? 0 : count($otherStatement));
     $otherStatement['includeDNU'] = (count($licensesDNU["statements"]) > 0) ? true : false;
@@ -328,6 +338,7 @@ class UnifiedReport extends Agent
                         "licenseComments" => $licenseComments,
                         "copyrights" => $copyrights,
                         "ecc" => $ecc,
+                        "ipra" => $ipra,
                         "licensesIrre" => $licensesIrre,
                         "licensesIrreComment" => $licensesIrreComment,
                         "licensesDNU" => $licensesDNU,
@@ -407,6 +418,7 @@ class UnifiedReport extends Agent
    * @param Section $section
    * @param array $mainLicenses
    * @param array $titleSubHeading
+   * @param $heading
    */
   private function globalLicenseTable(Section $section, $mainLicenses, $titleSubHeading, $heading)
   {
@@ -432,7 +444,8 @@ class UnifiedReport extends Agent
         $cell1->addText(htmlspecialchars($licenseMain["content"], ENT_DISALLOWED), $this->licenseColumn, "pStyle");
         $cell2 = $table->addCell($secondColLen);
         // replace new line character
-        $licenseText = str_replace("\n", "<w:br/>\n", htmlspecialchars($licenseMain["text"], ENT_DISALLOWED));
+        $licenseText = str_replace("\n", "</w:t>\n<w:br />\n<w:t xml:space=\"preserve\">", htmlspecialchars($licenseMain["text"], ENT_DISALLOWED));
+        $licenseText = str_replace("\r", "", $licenseText);
         $cell2->addText($licenseText, $this->licenseTextColumn, "pStyle");
         if (!empty($licenseMain["files"])) {
           $cell3 = $table->addCell($thirdColLen, $styleColumn);
@@ -475,13 +488,14 @@ class UnifiedReport extends Agent
     if (!empty($licenses)) {
       foreach ($licenses as $licenseStatement) {
         $table->addRow($this->rowHeight);
-        $cell1 = $table->addCell($firstColLen, null, "pStyle");
+        $cell1 = $table->addCell($firstColLen, "pStyle");
         $cell1->addText(htmlspecialchars($licenseStatement["content"], ENT_DISALLOWED), $this->licenseColumn, "pStyle");
         $cell2 = $table->addCell($secondColLen, "pStyle");
         // replace new line character
-        $licenseText = str_replace("\n", "<w:br/>\n", htmlspecialchars($licenseStatement["text"], ENT_DISALLOWED));
+        $licenseText = str_replace("\n", "</w:t>\n<w:br />\n<w:t xml:space=\"preserve\">", htmlspecialchars($licenseStatement["text"], ENT_DISALLOWED));
+        $licenseText = str_replace("\r", "", $licenseText);
         $cell2->addText($licenseText, $this->licenseTextColumn, "pStyle");
-        $cell3 = $table->addCell($thirdColLen, null, "pStyle");
+        $cell3 = $table->addCell($thirdColLen, "pStyle");
         asort($licenseStatement["files"]);
         foreach ($licenseStatement["files"] as $fileName) {
           $cell3->addText(htmlspecialchars($fileName), $this->filePathColumn, "pStyle");
@@ -524,7 +538,8 @@ class UnifiedReport extends Agent
           $cell1->addText(htmlspecialchars($licenseStatement["content"], ENT_DISALLOWED), $this->licenseColumn, "pStyle");
           $cell2 = $table->addCell($secondColLen);
           // replace new line character
-          $licenseText = str_replace("\n", "<w:br/>\n", htmlspecialchars($licenseStatement["text"], ENT_DISALLOWED));
+          $licenseText = str_replace("\n", "</w:t>\n<w:br />\n<w:t xml:space=\"preserve\">", htmlspecialchars($licenseStatement["text"], ENT_DISALLOWED));
+          $licenseText = str_replace("\r", "", $licenseText);
           $cell2->addText($licenseText, $this->licenseTextColumn, "pStyle");
           $cell3 = $table->addCell($thirdColLen, $riskarray['color']);
           asort($licenseStatement["files"]);
@@ -606,6 +621,7 @@ class UnifiedReport extends Agent
     $firstColLen = 5000;
     $secondColLen = 5000;
     $thirdColLen = 5000;
+    $rowWidth = 200;
 
     $section->addTitle(htmlspecialchars($title), 2);
     $section->addText($titleSubHeading, $this->subHeadingStyle);
@@ -636,6 +652,7 @@ class UnifiedReport extends Agent
    * @param Section $section
    * @param array $dataHistogram
    * @param array $titleSubHeading
+   * @param $heading
    */
   private function licenseHistogram(Section $section, $dataHistogram, $titleSubHeading, $heading)
   {
@@ -775,6 +792,15 @@ class UnifiedReport extends Agent
                ." The ECCN is seen as an attribute of the component release and"
                ." thus it shall be present in the component catalogue.";
       $this->getRowsAndColumnsForCEI($section, $heading, $contents['ecc']['statements'], $titleSubHeadingCEI, $textEcc);
+    }
+
+    $heading = array_keys($unifiedColumns['intellectualProperty'])[0];
+    $isEnabled = array_values($unifiedColumns['intellectualProperty'])[0];
+    if ($isEnabled) {
+      /* Display IPRA statements and files */
+      $heading = "Patent Relevant Statements";
+      $textIpra = "The content of this paragraph is not the result of the evaluation of the IP professionals. It contains information found by the scanner which shall be taken in consideration by the IP professionals during the evaluation process.";
+      $this->getRowsAndColumnsForCEI($section, $heading, $contents['ipra']['statements'], $titleSubHeadingCEI, $textIpra);
     }
 
     $heading = array_keys($unifiedColumns['notes'])[0];
@@ -928,7 +954,7 @@ class UnifiedReport extends Agent
       mkdir($fileBase, 0777, true);
     }
     umask(0022);
-    $fileName = $fileBase. "$packageName"."_clearing_report_".date("D_M_d_m_Y_h_i_s").".docx";
+    $fileName = $fileBase. "Clearing_Report_".$packageName.".docx";
     $objWriter = IOFactory::createWriter($phpWord, "Word2007");
     $objWriter->save($fileName);
 
@@ -944,8 +970,7 @@ class UnifiedReport extends Agent
    */
   private function updateReportTable($uploadId, $jobId, $filename)
   {
-    $this->dbManager->getSingleRow("INSERT INTO reportgen(upload_fk, job_fk, filepath) VALUES($1,$2,$3)",
-      array($uploadId, $jobId, $filename), __METHOD__);
+    $this->reportutils->updateOrInsertReportgenEntry($uploadId, $jobId, $filename);
   }
 }
 

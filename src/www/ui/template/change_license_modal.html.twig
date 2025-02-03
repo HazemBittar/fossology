@@ -1,8 +1,6 @@
-{# Copyright 2014-2017,2019,2021, Siemens AG
+{# SPDX-FileCopyrightText: © 2014-2017, 2019, 2021 Siemens AG
 
-   Copying and distribution of this file, with or without modification,
-   are permitted in any medium without royalty provided the copyright notice and this notice are preserved.
-   This file is offered as-is, without any warranty.
+   SPDX-License-Identifier: FSFAP
 #}
 
 {% import 'include/macros.html.twig' as macro %}
@@ -13,10 +11,15 @@
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
 
+      <!-- Loader -->
+      <div id="loader" class="dataTables_processing" style="display:none;">
+        Loading...
+      </div>
+
       <!-- Modal Header -->
       <div class="modal-header">
         <h4 class="modal-title">Edit Decisions</h4>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+        <button type="button" class="close" onclick="closeUserModal();" data-dismiss="modal" aria-label="Close">
           <span aria-hidden="true">&times;</span>
         </button>
       </div>

@@ -1,20 +1,9 @@
 <?php
-/***********************************************************
- Copyright (C) 2011-2013 Hewlett-Packard Development Company, L.P.
+/*
+ SPDX-FileCopyrightText: © 2011-2013 Hewlett-Packard Development Company, L.P.
 
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- version 2 as published by the Free Software Foundation.
-
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License along
- with this program; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-***********************************************************/
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 use Fossology\Lib\Db\DbManager;
 use GuzzleHttp\Client;
@@ -193,11 +182,11 @@ class foconfig extends FO_Plugin
              */
             if (! strcmp($validation_function, 'check_boolean')) {
               $warning_msg = _(
-                "Error: You set $ui_label to $VarValue. Valid  values are 'true' and 'false'.");
+                "Error: You set $ui_label to ".htmlspecialchars($VarValue).". Valid  values are 'true' and 'false'.");
               echo "<script>alert('$warning_msg');</script>";
             } else if (strpos($validation_function, "url")) {
               $warning_msg = _(
-                "Error: $ui_label $VarValue, is not a reachable URL.");
+                "Error: $ui_label ".htmlspecialchars($VarValue).", is not a reachable URL.");
               echo "<script>alert('$warning_msg');</script>";
             }
 

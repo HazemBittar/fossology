@@ -1,19 +1,8 @@
 <?php
 /*
-Copyright (C) 2014-2015,2019 Siemens AG
+ SPDX-FileCopyrightText: © 2014-2015, 2019 Siemens AG
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-version 2 as published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ SPDX-License-Identifier: GPL-2.0-only
 */
 
 use Fossology\Lib\Dao\ClearingDao;
@@ -62,7 +51,7 @@ class MonkScheduledTest extends \PHPUnit\Framework\TestCase
     $this->highlightDao = new HighlightDao($this->dbManager);
     $this->clearingDao = new ClearingDao($this->dbManager, $this->uploadDao);
 
-    $this->agentDir = dirname(dirname(__DIR__));
+    $this->agentDir = dirname(__DIR__, 4).'/build/src/monk';
   }
 
   protected function tearDown() : void
@@ -80,7 +69,7 @@ class MonkScheduledTest extends \PHPUnit\Framework\TestCase
     $sysConf = $this->testDb->getFossSysConf();
 
     $agentName = "monk";
-    $execDir = __DIR__;
+    $execDir = dirname(__DIR__,4).'/build/src/monk/agent';
 
     $pipeFd = popen("echo $uploadId | $execDir/$agentName -c $sysConf --userID=$userId --groupID=$groupId --jobId=$jobId --scheduler_start $args", "r");
     $this->assertTrue($pipeFd !== false, 'running monk failed');
@@ -159,7 +148,7 @@ class MonkScheduledTest extends \PHPUnit\Framework\TestCase
 
     /** @var LicenseRef */
     $matchedLicense = $licenseMatch->getLicenseRef();
-    $this->assertEquals($matchedLicense->getShortName(), "GPL-3.0");
+    $this->assertEquals($matchedLicense->getShortName(), "GPL-3.0-only");
 
     /** @var AgentRef */
     $agentRef = $licenseMatch->getAgentRef();
@@ -211,7 +200,7 @@ class MonkScheduledTest extends \PHPUnit\Framework\TestCase
 
     /** @var LicenseRef */
     $matchedLicense = $licenseMatch->getLicenseRef();
-    $this->assertEquals($matchedLicense->getShortName(), "GPL-3.0");
+    $this->assertEquals($matchedLicense->getShortName(), "GPL-3.0-only");
 
     /** @var AgentRef */
     $agentRef = $licenseMatch->getAgentRef();

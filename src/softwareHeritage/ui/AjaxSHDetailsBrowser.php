@@ -1,21 +1,10 @@
 <?php
-/***********************************************************
-Copyright (C) 2019
-Author: Sandip Kumar Bhuyan<sandipbhyan@gmail.com>
+/*
+ SPDX-FileCopyrightText: © 2019 Sandip Kumar Bhuyan <sandipbhuyan@gmail.com>
+ Author: Sandip Kumar Bhuyan<sandipbhyan@gmail.com>
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-version 2 as published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ***********************************************************/
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 use Fossology\Lib\Auth\Auth;
 use Fossology\Lib\BusinessRules\LicenseMap;
 use Fossology\Lib\Dao\AgentDao;
@@ -105,7 +94,7 @@ class AjaxSHDetailsBrowser extends DefaultPlugin
 
     $UniqueTagArray = array();
     $this->licenseProjector = new LicenseMap($this->getObject('db.manager'),$groupId,LicenseMap::CONCLUSION,true);
-    $vars = $this->createFileListing($tag_pk, $itemTreeBounds, $UniqueTagArray, $selectedAgentId, $groupId, $scanJobProxy);
+    $vars = $this->createFileListing($tag_pk, $itemTreeBounds, $UniqueTagArray, $selectedAgentId, $groupId, $scanJobProxy, $request);
 
     return new JsonResponse(array(
       'sEcho' => intval($request->get('sEcho')),
@@ -124,7 +113,7 @@ class AjaxSHDetailsBrowser extends DefaultPlugin
    * @param ScanJobProxy $scanJobProxy
    * @return array
    */
-  private function createFileListing($tagId, ItemTreeBounds $itemTreeBounds, &$UniqueTagArray, $selectedAgentId, $groupId, $scanJobProxy)
+  private function createFileListing($tagId, ItemTreeBounds $itemTreeBounds, &$UniqueTagArray, $selectedAgentId, $groupId, $scanJobProxy, $request)
   {
     if (!empty($selectedAgentId)) {
       $agentName = $this->agentDao->getAgentName($selectedAgentId);
@@ -141,6 +130,23 @@ class AjaxSHDetailsBrowser extends DefaultPlugin
       $options = array(UploadTreeProxy::OPT_RANGE => $itemTreeBounds);
     } else {
       $options = array(UploadTreeProxy::OPT_REALPARENT => $itemTreeBounds->getItemId());
+    }
+
+    $searchMap = array();
+    foreach (explode(' ',$request->get('sSearch')) as $pair) {
+      $a = explode(':',$pair);
+      if (count($a) == 1) {
+        $searchMap['head'] = $pair;
+      } else {
+        $searchMap[$a[0]] = $a[1];
+      }
+    }
+
+    if (array_key_exists('ext', $searchMap) && strlen($searchMap['ext'])>=1) {
+      $options[UploadTreeProxy::OPT_EXT] = $searchMap['ext'];
+    }
+    if (array_key_exists('head', $searchMap) && strlen($searchMap['head'])>=1) {
+      $options[UploadTreeProxy::OPT_HEAD] = $searchMap['head'];
     }
 
     $descendantView = new UploadTreeProxy($uploadId, $options, $itemTreeBounds->getUploadTreeTableName(), 'uberItems');

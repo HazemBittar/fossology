@@ -1,21 +1,11 @@
 <?php
-/***********************************************************
- * Copyright (C) 2008-2013 Hewlett-Packard Development Company, L.P.
- * Copyright (C) 2015 Siemens AG
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-***********************************************************/
+/*
+ SPDX-FileCopyrightText: © 2008-2013 Hewlett-Packard Development Company, L.P.
+ SPDX-FileCopyrightText: © 2015 Siemens AG
+
+ SPDX-License-Identifier: GPL-2.0-only
+*/
+
 use Fossology\Lib\Auth\Auth;
 use Fossology\Lib\Data\Highlight;
 
@@ -54,9 +44,9 @@ class agent_nomos_once extends FO_Plugin
   /**
    * @brief Analyze one uploaded file.
    * @param string $FilePath the filepath to the file to analyze.
-   * @return string $V, html to display the results.
+   * @return mixed If $getHighlightInfo is true, returns an array with display html, keyword highlights, and license highlights. If false, returns only display html
    */
-  function AnalyzeFile($FilePath)
+  public function AnalyzeFile($FilePath, $getHighlightInfo = false)
   {
     global $SYSCONFDIR;
 
@@ -71,6 +61,9 @@ class agent_nomos_once extends FO_Plugin
       '/License #(?P<name>[^#]*)# at (?P<position>\d+), length (?P<length>\d+),/',
       $licenses[1], $this->HighlightInfoLicenses);
 
+    if ($getHighlightInfo) {
+      return array($licenses[0], $this->HighlightInfoKeywords, $this->HighlightInfoLicenses);
+    }
     return ($licenses[0]);
   }
 
@@ -148,8 +141,9 @@ class agent_nomos_once extends FO_Plugin
     }
 
     /* Only register with the menu system if the user is logged in. */
-    if (! empty($_SESSION['User'])) {
-      if ($_SESSION[Auth::USER_LEVEL] >= PLUGIN_DB_WRITE) {
+    if (! empty($_SESSION[Auth::USER_NAME])) {
+      if (array_key_exists(Auth::USER_LEVEL, $_SESSION) &&
+        $_SESSION[Auth::USER_LEVEL] >= PLUGIN_DB_WRITE) {
         menu_insert("Main::Upload::One-Shot Nomos Analysis", $this->MenuOrder,
           $this->Name, $this->MenuTarget);
       }

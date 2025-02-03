@@ -1,23 +1,12 @@
 <?php
-/***********************************************************
- * Copyright (C) 2014-2017 Siemens AG
- * Author: J. Najjar, S. Weber, A. Wührl
- * Copyright (c) 2021-2022 Orange
- * Contributors: Piotr Pszczola, Bartlomiej Drozdz
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ***********************************************************/
+/*
+ SPDX-FileCopyrightText: © 2014-2017 Siemens AG
+ Author: J. Najjar, S. Weber, A. Wührl
+ SPDX-FileCopyrightText: © 2021-2022 Orange
+ Contributors: Piotr Pszczola, Bartlomiej Drozdz
+
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 namespace Fossology\Lib\Dao;
 
@@ -284,7 +273,7 @@ class UserDao
         array($userId, $groupId), __FUNCTION__);
   }
 
-  public function getUserAndDefaultGroupByUserName($userName, $oauth=false)
+  public function getUserAndDefaultGroupByUserName(&$userName, $oauth=false)
   {
     $searchEmail = " ";
     $statement = __METHOD__;
@@ -297,6 +286,9 @@ class UserDao
         array($userName), $statement);
     if (empty($userRow)) {
       throw new \Exception('invalid user name');
+    }
+    if ($oauth) {
+      $userName = $userRow['user_name'];
     }
     $userRow['oauth'] = $oauth;
     if ($userRow['group_fk']) {
@@ -381,11 +373,11 @@ class UserDao
       throw new \Exception(_("Error: Group name must be specified."));
     }
 
-    $groupAlreadyExists = $this->dbManager->getSingleRow("SELECT group_pk FROM groups WHERE group_name=$1",
+    $groupAlreadyExists = $this->dbManager->getSingleRow("SELECT group_pk, group_name FROM groups WHERE LOWER(group_name)=LOWER($1)",
             array($groupName),
             __METHOD__.'.gExists');
     if ($groupAlreadyExists) {
-      throw new \Exception(_("Group already exists.  Not added."));
+      throw new \Exception(_("Group exists. Try different Name, Group-Name checking is case-insensitive and Duplicate not allowed"));
     }
 
     $this->dbManager->insertTableRow('groups', array('group_name'=>$groupName));
@@ -398,10 +390,10 @@ class UserDao
     return $groupNowExists['group_pk'];
   }
 
-  public function addGroupMembership($groupId, $userId)
+  public function addGroupMembership($groupId, $userId, $groupPerm=1)
   {
     $this->dbManager->insertTableRow('group_user_member',
-            array('group_fk'=>$groupId,'user_fk'=>$userId,'group_perm'=>1));
+            array('group_fk'=>$groupId,'user_fk'=>$userId,'group_perm'=>$groupPerm));
   }
 
   /**
@@ -441,5 +433,14 @@ class UserDao
       throw new \Exception('unknown user with id='.$userId);
     }
     return $userRow['user_email'];
+  }
+
+  /**
+   * Get all users from users table
+   * @return array
+   */
+  public function getAllUsers()
+  {
+    return $this->dbManager->getRows("SELECT * FROM users ORDER BY user_name;");
   }
 }

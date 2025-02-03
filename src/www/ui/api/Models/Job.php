@@ -1,26 +1,18 @@
 <?php
-/***************************************************************
-Copyright (C) 2017 Siemens AG
+/*
+ SPDX-FileCopyrightText: © 2017 Siemens AG
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-version 2 as published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ***************************************************************/
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 /**
  * @file
  * @brief Job model
  */
 
 namespace Fossology\UI\Api\Models;
+
+use Fossology\UI\Api\Models\ApiVersion;
+use Fossology\Lib\Dao\UserDao;
 
 /**
  * @class Job
@@ -74,6 +66,11 @@ class Job
    *      - Processing
    */
   private $status;
+  /**
+   * @var array $jobQueue
+   * Array of JobQueues
+   */
+  private $jobQueue;
 
   /**
    * Job constructor.
@@ -86,9 +83,10 @@ class Job
    * @param integer $groupId
    * @param integer $eta
    * @param string $status
+   * @param array $jobQueue
    */
   public function __construct($id, $name = "", $queueDate = "", $uploadId = 0,
-    $userId = 0, $groupId = 0, $eta = 0, $status = "")
+    $userId = 0, $groupId = 0, $eta = 0, $status = "", $jobQueue = [])
   {
     $this->id = intval($id);
     $this->name = $name;
@@ -98,33 +96,51 @@ class Job
     $this->groupId = intval($groupId);
     $this->eta = intval($eta);
     $this->status = $status;
+    $this->jobQueue = $jobQueue;
   }
 
   /**
    * JSON representation of current job
    * @return string
    */
-  public function getJSON()
+  public function getJSON($version=ApiVersion::V1)
   {
-    return json_encode($this->getArray());
+    return json_encode($this->getArray($version));
   }
 
   /**
    * Get Job element as associative array
    * @return array
    */
-  public function getArray()
+  public function getArray($version = ApiVersion::V1)
   {
-    return [
-      'id'        => $this->id,
-      'name'      => $this->name,
-      'queueDate' => $this->queueDate,
-      'uploadId'  => $this->uploadId,
-      'userId'    => $this->userId,
-      'groupId'   => $this->groupId,
-      'eta'       => $this->eta,
-      'status'    => $this->status
-    ];
+    if ($version == ApiVersion::V2) {
+
+      /** @var UserDao */
+      $userDao = $GLOBALS['container']->get("dao.user");
+      return [
+        'id'        => $this->id,
+        'name'      => $this->name,
+        'queueDate' => $this->queueDate,
+        'uploadId'  => $this->uploadId,
+        'userName'  => $userDao->getUserName($this->userId),
+        'groupName' => $userDao->getGroupNameById($this->groupId),
+        'eta'       => $this->eta,
+        'status'    => $this->status,
+        'jobQueue'  => $this->jobQueue
+      ];
+    } else {
+      return [
+        'id'        => $this->id,
+        'name'      => $this->name,
+        'queueDate' => $this->queueDate,
+        'uploadId'  => $this->uploadId,
+        'userId'    => $this->userId,
+        'groupId'   => $this->groupId,
+        'eta'       => $this->eta,
+        'status'    => $this->status
+      ];
+    }
   }
 
   /**
@@ -200,6 +216,15 @@ class Job
   }
 
   /**
+   * Get job queue
+   * @return array Job queue
+   */
+  public function getJobQueue()
+  {
+    return $this->jobQueue;
+  }
+
+  /**
    * Set the job name
    * @param string $name Job name
    */
@@ -260,5 +285,14 @@ class Job
   public function setStatus($status)
   {
     $this->status = $status;
+  }
+
+  /**
+   * Set the job queue
+   * @param array $jobQueue Job queue
+   */
+  public function setJobQueue($jobQueue)
+  {
+    $this->jobQueue = $jobQueue;
   }
 }

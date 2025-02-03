@@ -1,21 +1,10 @@
 <?php
 /*
- Copyright (C) 2014-2018, Siemens AG
+ SPDX-FileCopyrightText: © 2014-2018 Siemens AG
  Author: Daniele Fognini, Johannes Najjar
 
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- version 2 as published by the Free Software Foundation.
-
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License along
- with this program; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- */
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 use Fossology\Lib\Auth\Auth;
 use Fossology\Lib\BusinessRules\ClearingDecisionProcessor;
@@ -40,7 +29,7 @@ class AjaxClearingView extends FO_Plugin
 {
   const OPTION_SKIP_FILE = "option_skipFile";
   const OPTION_SKIP_FILE_COPYRIGHT = "option_skipFileCopyRight";
-  const OPTION_SKIP_FILE_IP = "option_skipFileIp";
+  const OPTION_SKIP_FILE_IPRA = "option_skipFileIpra";
   const OPTION_SKIP_FILE_ECC = "option_skipFileEcc";
   const OPTION_SKIP_FILE_KEYWORD = "option_skipFileKeyword";
 
@@ -166,10 +155,10 @@ class AjaxClearingView extends FO_Plugin
    * @param $groupId
    * @param $uploadId
    * @param $uploadTreeId
-   * @internal param $itemTreeBounds
    * @return string
+   *@internal param $itemTreeBounds
    */
-  protected function doClearings($orderAscending, $groupId, $uploadId, $uploadTreeId)
+  public function doClearings($orderAscending, $groupId, $uploadId, $uploadTreeId)
   {
     $itemTreeBounds = $this->uploadDao->getItemTreeBoundsFromUploadId($uploadTreeId, $uploadId);
     $aaData = $this->getCurrentSelectedLicensesTableData($itemTreeBounds,
@@ -227,7 +216,7 @@ class AjaxClearingView extends FO_Plugin
 
       case "setNextPrev":
       case "setNextPrevCopyRight":
-      case "setNextPrevIp":
+      case "setNextPrevIpra":
       case "setNextPrevEcc":
       case "setNextPrevKeyword":
         return new JsonResponse(
@@ -288,7 +277,7 @@ class AjaxClearingView extends FO_Plugin
    * @param boolean $orderAscending
    * @return array
    */
-  protected function getCurrentSelectedLicensesTableData(ItemTreeBounds $itemTreeBounds, $groupId, $orderAscending)
+  public function getCurrentSelectedLicensesTableData(ItemTreeBounds $itemTreeBounds, $groupId, $orderAscending)
   {
     $uploadTreeId = $itemTreeBounds->getItemId();
     $uploadId = $itemTreeBounds->getUploadId();
@@ -369,8 +358,7 @@ class AjaxClearingView extends FO_Plugin
       }
     }
 
-    $valueTable = array_values($this->sortByKeys($table, $orderAscending));
-    return $valueTable;
+    return array_values($this->sortByKeys($table, $orderAscending));
   }
 
   /**
@@ -427,8 +415,7 @@ class AjaxClearingView extends FO_Plugin
     ksort($arrayToBeSortedByKeys, SORT_STRING);
 
     if ($orderAscending) {
-      $arrayToBeSortedByKeys = array_reverse($arrayToBeSortedByKeys);
-      return $arrayToBeSortedByKeys;
+      return array_reverse($arrayToBeSortedByKeys);
     }
     return $arrayToBeSortedByKeys;
   }
@@ -453,9 +440,9 @@ class AjaxClearingView extends FO_Plugin
         $opt = self::OPTION_SKIP_FILE_COPYRIGHT;
         break;
 
-      case "setNextPrevIp":
-        $modName = "ip-view";
-        $opt = self::OPTION_SKIP_FILE_IP;
+      case "setNextPrevIpra":
+        $modName = "ipra-view";
+        $opt = self::OPTION_SKIP_FILE_IPRA;
         break;
 
       case "setNextPrevEcc":

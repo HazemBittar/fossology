@@ -1,28 +1,19 @@
 <?php
 /*
-Copyright (C) 2014-2015, Siemens AG
+ SPDX-FileCopyrightText: © 2014-2015 Siemens AG
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-version 2 as published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ SPDX-License-Identifier: GPL-2.0-only
 */
 
 namespace Fossology\Lib\Proxy;
 
 use Fossology\Lib\BusinessRules\LicenseMap;
+use Fossology\Lib\Dao\LicenseDao;
+use Fossology\Lib\Dao\UploadDao;
+use Fossology\Lib\Data\AgentRef;
 use Fossology\Lib\Data\DecisionScopes;
 use Fossology\Lib\Data\DecisionTypes;
 use Fossology\Lib\Data\Tree\ItemTreeBounds;
-use Fossology\Lib\Data\AgentRef;
 
 class UploadTreeProxy extends DbViewProxy
 {
@@ -72,7 +63,7 @@ class UploadTreeProxy extends DbViewProxy
    * @param string $uploadTreeTableName
    * @return string
    */
-  private function createUploadTreeViewQuery($options, $uploadTreeTableName)
+  public function createUploadTreeViewQuery($options, $uploadTreeTableName)
   {
     if (empty($options)) {
       return self::getDefaultUploadTreeView($this->uploadId, $uploadTreeTableName);
@@ -239,6 +230,7 @@ class UploadTreeProxy extends DbViewProxy
    * @param $uploadId
    * @param $options
    * @param $uploadTreeTableName
+   * @param bool $applyGlobal
    * @return string
    */
   private static function getUploadTreeView($uploadId, $options, $uploadTreeTableName, $applyGlobal = false)
@@ -252,7 +244,9 @@ class UploadTreeProxy extends DbViewProxy
       case "noLicense":
       case self::OPT_SKIP_ALREADY_CLEARED:
       case "noCopyright":
+      case "noIpra":
       case "noEcc":
+      case "noKeyword":
 
         $queryCondition = self::getQueryCondition($skipThese, $options, $groupId, $agentFilter, $applyGlobal)." ".$additionalCondition;
         if ('uploadtree' === $uploadTreeTableName || 'uploadtree_a' == $uploadTreeTableName) {
@@ -293,10 +287,28 @@ class UploadTreeProxy extends DbViewProxy
 
   /**
    * @param $skipThese
+   * @param $options
+   * @param $groupId
+   * @param string $agentFilter
+   * @param bool $applyGlobal
    * @return string
    */
   private static function getQueryCondition($skipThese, $options, $groupId = null, $agentFilter='', $applyGlobal = false)
   {
+    global $container;
+    /** @var LicenseDao $licenseDao */
+    $licenseDao = $container->get('dao.license');
+    $licensesToRemove = [];
+    foreach (['No_license_found', 'Void'] as $licenseName) {
+      $license = $licenseDao->getLicenseByShortName($licenseName);
+      if ($license) {
+        $licensesToRemove[] = "lf.rf_fk != " . $license->getId();
+      }
+    }
+    $licensesToRemove = implode(' AND ', $licensesToRemove);
+    if (!empty($licensesToRemove)) {
+      $licensesToRemove = "($licensesToRemove) AND ";
+    }
     if ($applyGlobal) {
       $globalSql = "(
         ut.uploadtree_pk = cd.uploadtree_fk AND cd.group_fk = $groupId
@@ -308,12 +320,8 @@ class UploadTreeProxy extends DbViewProxy
       $globalSql = "ut.uploadtree_pk = cd.uploadtree_fk AND cd.group_fk = $groupId";
     }
     $conditionQueryHasLicense = "(EXISTS (SELECT 1 FROM license_file lf " .
-      "LEFT JOIN ONLY license_ref lr ON lf.rf_fk = lr.rf_pk " .
-      "LEFT JOIN license_candidate lc ON lf.rf_fk = lc.rf_pk " .
-      "AND lc.group_fk = $groupId " .
-      "WHERE (lr.rf_shortname NOT IN ('No_license_found', 'Void') " .
-      "OR (lr.rf_pk IS NULL AND lc.rf_pk IS NOT NULL)) " .
-      "AND lf.pfile_fk = ut.pfile_fk $agentFilter)" .
+      "WHERE ($licensesToRemove" .
+      "lf.pfile_fk = ut.pfile_fk $agentFilter))" .
       "OR EXISTS (SELECT 1 FROM clearing_decision AS cd " .
       "WHERE cd.group_fk = $groupId AND ut.uploadtree_pk = cd.uploadtree_fk))";
 
@@ -329,9 +337,16 @@ ORDER BY cd.clearing_decision_pk DESC LIMIT 1";
         return " $conditionQueryHasLicense
             AND NOT EXISTS (SELECT 1 FROM ($decisionQuery) AS latest_decision WHERE latest_decision.decision_type IN (".DecisionTypes::IRRELEVANT.",".DecisionTypes::IDENTIFIED.",".DecisionTypes::DO_NOT_USE.",".DecisionTypes::NON_FUNCTIONAL."))";
       case "noCopyright":
-        return "EXISTS (SELECT copyright_pk FROM copyright cp WHERE cp.pfile_fk=ut.pfile_fk and cp.hash is not null )";
+        return "EXISTS (SELECT copyright_pk FROM copyright cp WHERE cp.pfile_fk=ut.pfile_fk and cp.hash is not null )".
+              " OR EXISTS (SELECT 1 FROM copyright_decision AS cd WHERE ut.pfile_fk = cd.pfile_fk)";
+      case "noIpra":
+        return "EXISTS (SELECT ipra_pk FROM ipra cp WHERE cp.pfile_fk=ut.pfile_fk and cp.hash is not null )".
+              " OR EXISTS (SELECT 1 FROM ipra_decision AS cd WHERE ut.pfile_fk = cd.pfile_fk)";
       case "noEcc":
-        return "EXISTS (SELECT ecc_pk FROM ecc cp WHERE cp.pfile_fk=ut.pfile_fk and cp.hash is not null )";
+        return "EXISTS (SELECT ecc_pk FROM ecc cp WHERE cp.pfile_fk=ut.pfile_fk and cp.hash is not null )".
+              " OR EXISTS (SELECT 1 FROM ecc_decision AS cd WHERE ut.pfile_fk = cd.pfile_fk)";
+      case "noKeyword":
+        return "EXISTS (SELECT keyword_pk FROM keyword cp WHERE cp.pfile_fk=ut.pfile_fk and cp.hash is not null )";
     }
   }
 

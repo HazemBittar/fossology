@@ -1,8 +1,6 @@
-{# Copyright 2014-2018 Siemens AG
+{# SPDX-FileCopyrightText: © 2014-2018 Siemens AG
 
-   Copying and distribution of this file, with or without modification,
-   are permitted in any medium without royalty provided the copyright notice and this notice are preserved.
-   This file is offered as-is, without any warranty.
+   SPDX-License-Identifier: FSFAP
 #}
 selectedLicensesTableColumns = [
   {"sTitle": "{{ 'Action'| trans }}<img src='images/info_16.png' data-toggle='tooltip' title='{{ "Current actions are: 1. Cross: remove (or add again) the license from a clearing result. Note that the license finding stays in the table, but it is not considered for a clearing result 2. Star: mark this license as main license as the package. A main license will appear in the listing of the browse view as well in the reporting"|trans }}' alt='' class='info-bullet'/>", "sClass": "center nobreaktext", "bSortable": false, "sWidth" : "1%"},
@@ -65,7 +63,27 @@ addLicenseTableConfig = {
   "fnServerData": function (sSource, aoData, fnCallback) {
     aoData.push({"name": "upload", "value": uploadId});
     aoData.push({"name": "item", "value": itemId});
-    $.getJSON(sSource, aoData, fnCallback).fail(failed);
+    $.getJSON(sSource, aoData, function (data) {
+      const searchTerm = $('#licenseSelectionTable_filter input').val();
+      if (searchTerm) {
+        if (searchTerm.startsWith('=')) {
+          const exactMatchTerm = searchTerm.substring(1).trim().toLowerCase();
+
+          data.aaData = data.aaData.filter(function (row) {
+            const licenseName = $(row[0]).text().toLowerCase();
+            return licenseName === exactMatchTerm;
+          });
+        } else {
+          const partialMatchTerm = searchTerm.trim().toLowerCase();
+
+          data.aaData = data.aaData.filter(function (row) {
+            const licenseName = $(row[0]).text().toLowerCase();
+            return licenseName.includes(partialMatchTerm);
+          });
+        }
+      }
+      fnCallback(data);
+    }).fail(failed);
   },
   "aoColumns": addLicenseTableColumns,
   "iDisplayLength": 25,
@@ -73,7 +91,8 @@ addLicenseTableConfig = {
   "bStateSave": true,
   "bRetrieve": true,
   "bPaginate": false,
-  "bFilter": true
+  "bFilter": true,
+  "oSearch": true,
 };
 
 addClearingHistoryColumns = [

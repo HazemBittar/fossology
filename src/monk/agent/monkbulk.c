@@ -1,19 +1,8 @@
 /*
-Author: Daniele Fognini, Andreas Wuerl
-Copyright (C) 2013-2015,2018,2021 Siemens AG
+ Author: Daniele Fognini, Andreas Wuerl
+ SPDX-FileCopyrightText: © 2013-2015, 2018, 2021 Siemens AG
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-version 2 as published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ SPDX-License-Identifier: GPL-2.0-only
 */
 
 #include <stdlib.h>
@@ -85,7 +74,7 @@ int queryBulkArguments(MonkState* state, long bulkId) {
       state->dbManager,
       "queryBulkArguments",
       "SELECT ut.upload_fk, ut.uploadtree_pk, lrb.user_fk, lrb.group_fk, "
-      "lrb.rf_text, lrb.ignore_irrelevant, lrb.bulk_delimiters "
+      "lrb.rf_text, lrb.ignore_irrelevant, lrb.bulk_delimiters, lrb.scan_findings "
       "FROM license_ref_bulk lrb INNER JOIN uploadtree ut "
       "ON ut.uploadtree_pk = lrb.uploadtree_fk "
       "WHERE lrb_pk = $1",
@@ -114,6 +103,7 @@ int queryBulkArguments(MonkState* state, long bulkId) {
       {
         bulkArguments->delimiters = normalize_escape_string(PQgetvalue(bulkArgumentsResult, 0, column++));
       }
+      bulkArguments->scanFindings = strcmp(PQgetvalue(bulkArgumentsResult, 0, column++), "t") == 0;
       bulkArguments->bulkId = bulkId;
       bulkArguments->actions = queryBulkActions(state, bulkId);
       bulkArguments->jobId = fo_scheduler_jobId();
@@ -202,7 +192,8 @@ int bulk_identification(MonkState* state) {
     bulkArguments->uploadTreeLeft,
     bulkArguments->uploadTreeRight,
     bulkArguments->groupId,
-    bulkArguments->ignoreIrre
+    bulkArguments->ignoreIrre,
+    bulkArguments->scanFindings
   );
 
   int haveError = 1;

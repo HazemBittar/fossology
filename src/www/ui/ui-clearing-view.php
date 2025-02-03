@@ -1,21 +1,10 @@
 <?php
 /*
- Copyright (C) 2014-2017, Siemens AG
+ SPDX-FileCopyrightText: © 2014-2017 Siemens AG
  Author: Daniele Fognini, Johannes Najjar
 
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- version 2 as published by the Free Software Foundation.
-
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License along
- with this program; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- */
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 use Fossology\Lib\Auth\Auth;
 use Fossology\Lib\BusinessRules\ClearingDecisionFilter;
@@ -109,7 +98,7 @@ class ClearingView extends FO_Plugin
    * @param int $uploadId
    * @return Highlight[]
    */
-  private function getSelectedHighlighting(ItemTreeBounds $itemTreeBounds, $licenseId, $selectedAgentId, $highlightId, $clearingId, $uploadId)
+  public function getSelectedHighlighting(ItemTreeBounds $itemTreeBounds, $licenseId, $selectedAgentId, $highlightId, $clearingId, $uploadId)
   {
     $unmaskAgents = $selectedAgentId;
     if (empty($selectedAgentId)) {
@@ -351,11 +340,12 @@ class ClearingView extends FO_Plugin
 
   /**
    * @param int $userId
-   * @param int
+   * @param int $groupId
    * @param int $lastItem
+   * @param int $currentUploadtreeId
    * @return array
    */
-  protected function updateLastItem($userId, $groupId, $lastItem, $currentUploadtreeId)
+  public function updateLastItem($userId, $groupId, $lastItem, $currentUploadtreeId)
   {
     $type = GetParm("clearingTypes", PARM_INTEGER);
     $global = GetParm("globalDecision", PARM_STRING) === "on" ? 1 : 0;

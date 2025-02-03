@@ -1,21 +1,10 @@
 <?php
-/***********************************************************
- * Copyright (C) 2014-2019 Siemens AG
- * Author: Daniele Fognini, Johannes Najjar, Steffen Weber
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ***********************************************************/
+/*
+ SPDX-FileCopyrightText: © 2014-2019, 2022, Siemens AG
+ Author: Daniele Fognini, Johannes Najjar, Steffen Weber, Shaheem Azmal M MD
+
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 use Fossology\Lib\Auth\Auth;
 use Fossology\Lib\Dao\CopyrightDao;
@@ -101,14 +90,14 @@ class CopyrightHistogramProcessPost extends FO_Plugin
     if ($action=="deletedecision" || $action=="undodecision") {
       $decision = GetParm("decision", PARM_INTEGER);
       $pfile = GetParm("pfile", PARM_INTEGER);
-    } else if ($action=="deleteHashDecision" || $action=="undoHashDecision") {
+    } elseif ($action=="deleteHashDecision" || $action=="undoHashDecision") {
       $hash = GetParm("hash", PARM_STRING);
-    } else if($action=="update" || $action=="delete" || $action=="undo") {
+    } elseif ($action=="update" || $action=="delete" || $action=="undo") {
       $id = GetParm("id", PARM_STRING);
       $getEachID = array_filter(explode(",", trim($id, ',')), function($var) {
           return $var !== "";
       });
-      if(count($getEachID) == 4) {
+      if (count($getEachID) == 4) {
         list($upload, $item, $hash, $type) = $getEachID;
       } else {
         return new Response('bad request while '.$action,
@@ -204,7 +193,7 @@ class CopyrightHistogramProcessPost extends FO_Plugin
    * @brief Get the copyright data and fill in expected format
    * @param int     $upload    Upload id to get results from
    * @param int     $item      Upload tree id of the item
-   * @param int     $agent_pk  Id of the agent who loaded the results
+   * @param string  $agent_pk  Id of the agent who loaded the results
    * @param string  $type      Type of the statement (statement, url, email, author or ecc)
    * @param string  $listPage  Page slug to use
    * @param string  $filter    Filter data from query
@@ -213,13 +202,13 @@ class CopyrightHistogramProcessPost extends FO_Plugin
    */
   private function getTableData($upload, $item, $agent_pk, $type, $listPage, $filter, $activated = true)
   {
-    list ($rows, $iTotalDisplayRecords, $iTotalRecords) = $this->getCopyrights($upload, $item, $this->uploadtree_tablename, $agent_pk, $type, $filter, $activated);
+    $offset = GetParm('iDisplayStart', PARM_INTEGER);
+    $limit = GetParm('iDisplayLength', PARM_INTEGER);
+    list ($rows, $iTotalDisplayRecords, $iTotalRecords) = $this->getCopyrights($upload, $item, $this->uploadtree_tablename, $agent_pk, $type, $filter, $activated, $offset, $limit);
     $aaData = array();
-    if (!empty($rows))
-    {
+    if (!empty($rows)) {
       $rw = $this->uploadDao->isEditable($upload, Auth::getGroupId());
-      foreach ($rows as $row)
-      {
+      foreach ($rows as $row) {
         $aaData [] = $this->fillTableRow($row, $item, $upload, $agent_pk, $type,$listPage, $filter, $activated, $rw);
       }
     }
@@ -233,47 +222,40 @@ class CopyrightHistogramProcessPost extends FO_Plugin
    * @param int     $upload_pk           Upload id to get results from
    * @param int     $item                Upload tree id of the item
    * @param string  $uploadTreeTableName Upload tree table to use
-   * @param int     $agentId             Id of the agent who loaded the results
+   * @param string  $agentId             Id of the agent who loaded the results
    * @param string  $type                Type of the statement (statement, url, email, author or ecc)
    * @param string  $filter              Filter data from query
    * @param boolean $activated           True to get activated copyrights, else false
    * @return array[][] Array of table records, filtered records, total records
    */
-  protected function getCopyrights($upload_pk, $item, $uploadTreeTableName, $agentId, $type, $filter, $activated = true)
+  public function getCopyrights($upload_pk, $item, $uploadTreeTableName, $agentId, $type, $filter, $activated = true, $offset = null , $limit = null)
   {
-    $offset = GetParm('iDisplayStart', PARM_INTEGER);
-    $limit = GetParm('iDisplayLength', PARM_INTEGER);
-
     $tableName = $this->getTableName($type);
     $tableNameEvent = $tableName.'_event';
     $orderString = $this->getOrderString();
 
     list($left, $right) = $this->uploadDao->getLeftAndRight($item, $uploadTreeTableName);
 
-    if ($filter == "")
-    {
+    if ($filter == "") {
       $filter = "none";
     }
 
     $sql_upload = "";
-    if ('uploadtree_a' == $uploadTreeTableName)
-    {
+    if ('uploadtree_a' == $uploadTreeTableName) {
       $sql_upload = " AND UT.upload_fk=$5 ";
     }
 
     $join = "";
     $filterQuery = "";
-    if (($type == 'statement' || $type == 'scancode_statement') && $filter == "nolic")
-    {
+    if (($type == 'statement' || $type == 'scancode_statement') && $filter == "nolic") {
       $noLicStr = "No_license_found";
       $voidLicStr = "Void";
       $join = " INNER JOIN license_file AS LF on cp.pfile_fk=LF.pfile_fk ";
       $filterQuery = " AND LF.rf_fk IN (SELECT rf_pk FROM license_ref WHERE rf_shortname IN ('$noLicStr','$voidLicStr')) ";
-    } else
-    {
+    } else {
       // No filter, nothing to do
     }
-    $params = array($left, $right, $type, $agentId, $upload_pk);
+    $params = array($left, $right, $type, "{" . $agentId . "}", $upload_pk);
 
     $filterParms = $params;
     $searchFilter = $this->addSearchFilter($filterParms);
@@ -290,7 +272,7 @@ class CopyrightHistogramProcessPost extends FO_Plugin
         "WHERE cp.content!='' " .
         "AND ( UT.lft  BETWEEN  $1 AND  $2 ) " .
         "AND cp.type = $3 " .
-        "AND cp.agent_fk= $4 " .
+        "AND cp.agent_fk = ANY($4::int[]) " .
         "AND ($activatedClause)" .
         $sql_upload;
     $grouping = " GROUP BY mcontent ";
@@ -339,9 +321,12 @@ count(*) AS copyright_count " .
    * @param string $type Result type
    * @return string Table name
    */
-  private function getTableName($type)
+  public function getTableName($type)
   {
     switch ($type) {
+      case "ipra" :
+        $tableName = "ipra";
+        break;
       case "ecc" :
         $tableName = "ecc";
         break;
@@ -354,6 +339,9 @@ count(*) AS copyright_count " .
         break;
       case "scancode_statement":
         $tableName = "scancode_copyright";
+        break;
+      case "user_statement":
+        $tableName = "copyright_decision";
         break;
       case "scancode_email":
       case "scancode_author":
@@ -374,11 +362,20 @@ count(*) AS copyright_count " .
   {
     $columnNamesInDatabase = array('copyright_count', 'content');
 
-    $defaultOrder = CopyrightHistogram::returnSortOrder();
+    $defaultOrder = HistogramBase::returnSortOrder();
 
-    $orderString = $this->dataTablesUtility->getSortingString($_GET, $columnNamesInDatabase, $defaultOrder);
+    return $this->dataTablesUtility->getSortingString($_GET, $columnNamesInDatabase, $defaultOrder);
+  }
 
-    return $orderString;
+  /**
+   * @brief Get Agent ID for an upload
+   * @param integer $upload_pk Upload ID
+   * @param string $copyrightType Copyright Type
+   * @return integer Agent ID
+   */
+  public function getAgentId($upload_pk,$copyrightType)
+  {
+    return (LatestAgentpk($upload_pk, $copyrightType));
   }
 
   /**
@@ -389,11 +386,14 @@ count(*) AS copyright_count " .
   private function addSearchFilter(&$filterParams)
   {
     $searchPattern = GetParm('sSearch', PARM_STRING);
-    if (empty($searchPattern))
-    {
+    $isInverseSearch = GetParm('isInverse', PARM_STRING);
+    if (empty($searchPattern)) {
       return '';
     }
     $filterParams[] = "%$searchPattern%";
+    if ($isInverseSearch == 'true') {
+      return 'WHERE mcontent not ilike $'.count($filterParams).' ';
+    }
     return 'WHERE mcontent ilike $'.count($filterParams).' ';
   }
 
@@ -409,22 +409,20 @@ count(*) AS copyright_count " .
    */
   private function getTableRowAction($hash, $uploadTreeId, $upload, $type, $activated = true, $rw = true)
   {
-    if($rw)
-    {
+    if ($rw) {
       $act = "<img";
-      if(!$activated)
-      {
+      if (!$activated) {
         $act .= " hidden='true'";
       }
       $act .= " id='delete$type$hash' onClick='delete$type($upload,$uploadTreeId,\"$hash\",\"$type\");' class=\"delete\" src=\"images/space_16.png\">";
       $act .= "<span";
-      if($activated) {
+      if ($activated) {
         $act .= " hidden='true'";
       }
       $act .= " id='update$type$hash'>deactivated [<a href=\"#\" id='undo$type$hash' onClick='undo$type($upload,$uploadTreeId,\"$hash\",\"$type\");return false;'>Undo</a>]</span>";
       return $act;
     }
-    if(!$activated) {
+    if (!$activated) {
       return "deactivated";
     }
     return "";
@@ -435,7 +433,7 @@ count(*) AS copyright_count " .
    * @param array   $row          Result row from database
    * @param int     $uploadTreeId Upload tree id of the item
    * @param int     $upload       Upload id
-   * @param int     $agentId      Agent id
+   * @param string  $agentId      Agent id
    * @param string  $type         Type of content
    * @param string  $listPage     Page slug
    * @param string  $filter       Filter for query
@@ -446,7 +444,7 @@ count(*) AS copyright_count " .
   private function fillTableRow($row, $uploadTreeId, $upload, $agentId, $type,$listPage, $filter = "", $activated = true, $rw = true)
   {
     $hash = $row['hash'];
-    $output = array('DT_RowId' => "$upload,$uploadTreeId,$hash,$type" );
+    $output = array('DT_RowId' => "$upload,$uploadTreeId,$hash,$type", "DT_RowClass" => "row$hash");
 
     $link = "<a href='";
     $link .= Traceback_uri();
@@ -465,12 +463,9 @@ count(*) AS copyright_count " .
     $output['0'] = $link;
     $output['1'] = convertToUTF8($row['content']);
     $output['2'] = $this->getTableRowAction($hash, $uploadTreeId, $upload, $type, $activated, $rw);
-    if($rw && $activated)
-    {
+    if ($rw && $activated) {
       $output['3'] = "<input type='checkbox' class='deleteBySelect$type' id='deleteBySelect$type$hash' value='".$upload.",".$uploadTreeId.",".$hash.",".$type."'>";
-    }
-    else
-    {
+    } else {
         $output['3'] = "<input type='checkbox' class='undoBySelect$type' id='undoBySelect$type$hash' value='".$upload.",".$uploadTreeId.",".$hash.",".$type."'>";
     }
     return $output;
@@ -486,8 +481,7 @@ count(*) AS copyright_count " .
   protected function doUpdate($itemId, $hash, $type)
   {
     $content = GetParm("value", PARM_RAW);
-    if (empty($content))
-    {
+    if (empty($content)) {
       return new Response('empty content not allowed',
         Response::HTTP_BAD_REQUEST ,array('Content-type'=>'text/plain'));
     }
@@ -521,7 +515,8 @@ count(*) AS copyright_count " .
    * @param string $type   'copyright'|'ecc'
    * @return Response
    */
-  protected function doUndo($itemId, $hash, $type) {
+  protected function doUndo($itemId, $hash, $type)
+  {
     $item = $this->uploadDao->getItemTreeBounds($itemId, $this->uploadtree_tablename);
     $cpTable = $this->getTableName($type);
     $this->copyrightDao->updateTable($item, $hash, '', Auth::getUserId(), $cpTable, 'rollback');
@@ -535,7 +530,8 @@ count(*) AS copyright_count " .
    * @param string $type       'copyright'|'ecc'
    * @return JsonResponse
    */
-  protected function doDeleteDecision($decisionId, $pfileId, $type) {
+  protected function doDeleteDecision($decisionId, $pfileId, $type)
+  {
     $this->copyrightDao->removeDecision($type."_decision", $pfileId, $decisionId);
     return new JsonResponse(array("msg" => $decisionId . " .. " . $pfileId  . " .. " . $type));
   }
@@ -547,7 +543,8 @@ count(*) AS copyright_count " .
    * @param string $type       'copyright'|'ecc'
    * @return JsonResponse
    */
-  protected function doUndoDecision($decisionId, $pfileId, $type) {
+  protected function doUndoDecision($decisionId, $pfileId, $type)
+  {
     $this->copyrightDao->undoDecision($type."_decision", $pfileId, $decisionId);
     return new JsonResponse(array("msg" => $decisionId . " .. " . $pfileId  . " .. " . $type));
   }

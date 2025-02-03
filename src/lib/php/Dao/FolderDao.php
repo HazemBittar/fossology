@@ -1,20 +1,9 @@
 <?php
 /*
-Copyright (C) 2014-2015, Siemens AG
-Authors: Andreas Würl, Steffen Weber
+ SPDX-FileCopyrightText: © 2014-2015 Siemens AG
+ Authors: Andreas Würl, Steffen Weber
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-version 2 as published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ SPDX-License-Identifier: GPL-2.0-only
 */
 
 namespace Fossology\Lib\Dao;
@@ -233,7 +222,7 @@ GROUP BY group_fk
 
     $allIds = array();
     for ($i=0; $i < sizeof($results); $i++) {
-      array_push($allIds, intval($results[$i]['folder_pk']));
+      $allIds[] = intval($results[$i]['folder_pk']);
     }
 
     return $allIds;
@@ -400,7 +389,9 @@ WHERE fc.parent_fk = $1 AND fc.foldercontents_mode = " . self::MODE_UPLOAD . " A
     if ($this->isRemovableContent($content['child_id'], $content['foldercontents_mode'])) {
       $sql = "DELETE FROM foldercontents WHERE foldercontents_pk=$1";
       $this->dbManager->getSingleRow($sql, array($folderContentId), __METHOD__);
+      return true;
     }
+    return false;
   }
 
   public function removeContentById($uploadpk, $folderId)
@@ -413,8 +404,8 @@ WHERE fc.parent_fk = $1 AND fc.foldercontents_mode = " . self::MODE_UPLOAD . " A
   {
     $results = array();
     $stmtFolder = __METHOD__;
-    $sqlFolder = "SELECT foldercontents_pk,foldercontents_mode, folder_name FROM foldercontents,folder "
-      . "WHERE foldercontents.parent_fk=$1 AND foldercontents.child_id=folder.folder_pk"
+    $sqlFolder = "SELECT foldercontents_pk,foldercontents_mode, folder_name FROM foldercontents JOIN folder"
+      . " ON foldercontents.child_id=folder.folder_pk WHERE foldercontents.parent_fk=$1"
       . " AND foldercontents_mode=" . self::MODE_FOLDER;
     $this->dbManager->prepare($stmtFolder, $sqlFolder);
     $res = $this->dbManager->execute($stmtFolder, array($folderId));

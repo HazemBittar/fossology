@@ -1,21 +1,10 @@
 <?php
-/***********************************************************
- * Copyright (C) 2010-2014 Hewlett-Packard Development Company, L.P.
- * Copyright (C) 2014-2017,2019 Siemens AG
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ***********************************************************/
+/*
+ SPDX-FileCopyrightText: © 2010-2014 Hewlett-Packard Development Company, L.P.
+ SPDX-FileCopyrightText: © 2014-2017,2019 Siemens AG
+
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 require_once('HistogramBase.php');
 
@@ -25,7 +14,8 @@ define("TITLE_COPYRIGHTHISTOGRAM", _("Copyright Browser"));
  * @class CopyrightHistogram
  * @brief Create histogram plugin for copyright
  */
-class CopyrightHistogram extends HistogramBase {
+class CopyrightHistogram extends HistogramBase
+{
   function __construct()
   {
     $this->Name = "copyright-hist";
@@ -40,7 +30,7 @@ class CopyrightHistogram extends HistogramBase {
    * @param int    $upload_pk    Upload id for fetch request
    * @param int    $uploadtreeId Upload tree id of the item
    * @param string $filter       Filter to apply for query
-   * @param int    $agentId      Agent id which populate the result
+   * @param string $agentId      Agent id which populate the result
    * @return array Copyright contents, upload tree items in result
    */
   protected function getTableContent($upload_pk, $uploadtreeId, $filter, $agentId)
@@ -52,9 +42,8 @@ class CopyrightHistogram extends HistogramBase {
     );
     $tableVars = array();
     $output = array();
-    foreach($typeDescriptionPairs as $type=>$description)
-    {
-      if($type==="scancode_statement"){
+    foreach ($typeDescriptionPairs as $type=>$description) {
+      if ($type==="scancode_statement") {
         $agentId=LatestAgentpk($upload_pk, 'scancode_ars');
         $this->agentName = "scancode";
       }
@@ -98,15 +87,11 @@ class CopyrightHistogram extends HistogramBase {
     $URI = $this->Name . Traceback_parm_keep(array("show","format","page","upload","item"));
     $Item = GetParm("item",PARM_INTEGER);
     $Upload = GetParm("upload",PARM_INTEGER);
-    if (!empty($Item) && !empty($Upload))
-    {
-      if (GetParm("mod",PARM_STRING) == $this->Name)
-      {
+    if (!empty($Item) && !empty($Upload)) {
+      if (GetParm("mod",PARM_STRING) == $this->Name) {
         menu_insert("Browse::Copyright",10);
         menu_insert("Browse::[BREAK]",100);
-      }
-      else
-      {
+      } else {
         $text = _("View copyright histogram");
         menu_insert("Browse::Copyright",10,$URI,$text);
       }
@@ -142,7 +127,6 @@ class CopyrightHistogram extends HistogramBase {
     });
     ";
   }
-
 }
 
 $NewPlugin = new CopyrightHistogram;

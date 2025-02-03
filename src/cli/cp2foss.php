@@ -1,21 +1,11 @@
 <?php
-/***********************************************************
- Copyright (C) 2008-2014 Hewlett-Packard Development Company, L.P.
- Copyright (C) 2015 Siemens AG
+/*
+ SPDX-FileCopyrightText: © 2008-2014 Hewlett-Packard Development Company, L.P.
+ SPDX-FileCopyrightText: © 2015 Siemens AG
 
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- version 2 as published by the Free Software Foundation.
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License along
- with this program; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-***********************************************************/
 /**
  * \file cp2foss.php
  * \brief cp2foss
@@ -408,15 +398,15 @@ for ($i = 1; $i < $argc; $i ++) {
       exit(0);
     case '--username':
       $i++;
-      $user = $argv[$i];
+      $user = escapeshellarg($argv[$i]);
       break;
     case '--groupname':
       $i++;
-      $group = $argv[$i];
+      $group = escapeshellarg($argv[$i]);
       break;
     case '--password':
       $i++;
-      $passwd = $argv[$i];
+      $passwd = escapeshellarg($argv[$i]);
       break;
     case '--user':
       $i++;
@@ -464,18 +454,18 @@ for ($i = 1; $i < $argc; $i ++) {
       break;
     case '-d': /* specify upload description */
       $i++;
-      $UploadDescription = $argv[$i];
+      $UploadDescription = escapeshellarg($argv[$i]);
       break;
     case '-n': /* specify upload name */
       $i++;
-      $UploadName = $argv[$i];
+      $UploadName = escapeshellarg($argv[$i]);
       break;
     case '-Q': /** list all available processing agents */
       $OptionQ = 1;
       break;
     case '-q':
       $i++;
-      $QueueList = $argv[$i];
+      $QueueList = escapeshellarg($argv[$i]);
       break;
     case '-s':
       $OptionS = true;
@@ -534,7 +524,7 @@ for ($i = 1; $i < $argc; $i ++) {
         exit(1);
       }
       /* No hyphen means it is a file! */
-      $UploadArchive = $argv[$i];
+      $UploadArchive = escapeshellarg($argv[$i]);
   } /* switch */
 } /* for each parameter */
 

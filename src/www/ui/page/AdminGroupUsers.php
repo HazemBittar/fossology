@@ -1,23 +1,12 @@
 <?php
-/***********************************************************
- Copyright (C) 2014-2015, 2018 Siemens AG
+/*
+ SPDX-FileCopyrightText: © 2014-2015, 2018 Siemens AG
  Author: Steffen Weber
- Copyright (c) 2021-2022 Orange
+ SPDX-FileCopyrightText: © 2021-2022 Orange
  Contributors: Piotr Pszczola, Bartlomiej Drozdz
 
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- version 2 as published by the Free Software Foundation.
-
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License along
- with this program; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ***********************************************************/
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 namespace Fossology\UI\Page;
 
@@ -77,7 +66,7 @@ class AdminGroupUsers extends DefaultPlugin
       if ($atleastOneUserShouldBePart['cnt'] <= 1) {
          $text = _("Error: atleast one user should be part of a group.");
       } else {
-        $this->updateGUMPermission($gum_pk, $perm);
+        $this->updateGUMPermission($gum_pk, $perm,$dbManager);
       }
       $groupMap = $userDao->getAdminGroupMap($userId,
         $_SESSION[Auth::USER_LEVEL]);
@@ -152,9 +141,8 @@ class AdminGroupUsers extends DefaultPlugin
     return $this->render('admin_group_users.html.twig', $this->mergeWithDefault($vars));
   }
 
-  public function updateGUMPermission($gum_pk, $perm)
+  public function updateGUMPermission($gum_pk, $perm,$dbManager)
   {
-    $dbManager = $this->getObject('db.manager');
     if ($perm === -1) {
       $dbManager->prepare($stmt = __METHOD__ . ".delByGUM",
           "DELETE FROM group_user_member WHERE group_user_member_pk=$1 RETURNING user_fk, group_fk");

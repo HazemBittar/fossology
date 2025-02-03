@@ -1,21 +1,10 @@
 <?php
-/***************************************************************
- Copyright (C) 2019,2021 Siemens AG
- Author: Gaurav Mishra <mishra.gaurav@siemens.com>
+/*
+ SPDX-FileCopyrightText: © 2019, 2021 Siemens AG
+ Author: Gaurav Mishra <mishra.gaurav@siemens.com>, Soham Banerjee <sohambanerjee4abc@hotmail.com>
 
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- version 2 as published by the Free Software Foundation.
-
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License along
- with this program; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ***************************************************************/
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 /**
  * @file
  * @brief Controller to get REST API information
@@ -23,10 +12,13 @@
 
 namespace Fossology\UI\Api\Controllers;
 
+use Fossology\UI\Api\Exceptions\HttpErrorException;
+use Fossology\UI\Api\Exceptions\HttpInternalServerErrorException;
 use Fossology\UI\Api\Helper\ResponseHelper;
+use Fossology\UI\Api\Models\ApiVersion;
 use Psr\Http\Message\ServerRequestInterface;
-use Symfony\Component\Yaml\Parser;
 use Symfony\Component\Yaml\Exception\ParseException;
+use Symfony\Component\Yaml\Parser;
 
 /**
  * @class InfoController
@@ -40,16 +32,24 @@ class InfoController extends RestController
    * @param ServerRequestInterface $request
    * @param ResponseHelper $response
    * @return ResponseHelper
+   * @throws HttpErrorException
    */
   public function getInfo($request, $response)
   {
     global $SysConf;
     try {
       $yaml = new Parser();
-      $yamlDocArray = $yaml->parse(file_get_contents(__DIR__ ."/../documentation/openapi.yaml"));
+      if (ApiVersion::getVersion($request) == ApiVersion::V2) {
+        $yamlDocArray = $yaml->parse(file_get_contents(
+          dirname(__DIR__) . "/documentation/openapiv2.yaml"));
+      } else {
+        $yamlDocArray = $yaml->parse(file_get_contents(
+          dirname(__DIR__) . "/documentation/openapi.yaml"));
+      }
     } catch (ParseException $exception) {
       printf("Unable to parse the YAML string: %s", $exception->getMessage());
-      return $response->withStatus(500, "Unable to read openapi.yaml");
+      throw new HttpInternalServerErrorException("Unable to read openapi.yaml",
+        $exception);
     }
     $apiTitle = $yamlDocArray["info"]["title"];
     $apiDescription = $yamlDocArray["info"]["description"];
@@ -128,5 +128,57 @@ class InfoController extends RestController
         "status" => $dbStatus
       ]
     ), $statusCode);
+  }
+
+  /**
+   * Get the current OpenAPI info
+   *
+   * @param ServerRequestInterface $request
+   * @param ResponseHelper $response
+   * @return ResponseHelper
+   * @throws HttpErrorException
+   */
+  public function getOpenApi($request, $response)
+  {
+    $isJsonRequest = false;
+    $requestFormat = $request->getHeader("Accept");
+    if (!empty($requestFormat) && !empty($requestFormat[0])) {
+      $requestFormat = $requestFormat[0];
+    } else {
+      $requestFormat = "";
+    }
+    if (strcasecmp($requestFormat, "application/vnd.oai.openapi+json") === 0
+        || strcasecmp($requestFormat, "application/json") === 0) {
+      $isJsonRequest = true;
+    }
+
+    if (ApiVersion::getVersion($request) == ApiVersion::V2) {
+      $yamlContent = file_get_contents(
+        dirname(__DIR__) . "/documentation/openapiv2.yaml");
+    } else {
+      $yamlContent = file_get_contents(
+        dirname(__DIR__) . "/documentation/openapi.yaml");
+    }
+    if ($isJsonRequest) {
+      try {
+        $yaml = new Parser();
+        $yamlDocArray = $yaml->parse($yamlContent);
+      } catch (ParseException $exception) {
+        printf("Unable to parse the YAML string: %s", $exception->getMessage());
+        throw new HttpInternalServerErrorException("Unable to read openapi.yaml",
+          $exception);
+      }
+      return $response
+        ->withHeader("Content-Disposition", "inline; filename=\"openapi.json\"")
+        ->withJson($yamlDocArray, 200);
+    }
+    if (empty($yamlContent)) {
+      throw new HttpInternalServerErrorException("Unable to read openapi.yaml");
+    }
+    $response->getBody()->write($yamlContent);
+    return $response
+      ->withHeader("Content-Type", "application/vnd.oai.openapi;charset=utf-8")
+      ->withHeader("Content-Disposition", "inline; filename=\"openapi.yaml\"")
+      ->withStatus(200);
   }
 }

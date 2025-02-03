@@ -1,22 +1,10 @@
 <?php
-/***********************************************************
-Copyright Darshan Kansagara <kansagara.darshan97@gmail.com>
-SPDX-License-Identifier: GPL-2.0
-Author: Darshan Kansagara <kansagara.darshan97@gmail.com>
+/*
+ SPDX-FileCopyrightText: © Darshan Kansagara <kansagara.darshan97@gmail.com>
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-version 2 as published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-***********************************************************/
+ SPDX-License-Identifier: GPL-2.0-only
+ Author: Darshan Kansagara <kansagara.darshan97@gmail.com>
+*/
 
 use Fossology\Lib\Db\DbManager;
 
@@ -184,7 +172,7 @@ class FossdashConfig extends FO_Plugin
               "update fossdashconfig set conf_value=$1 where variablename=$2",
               array($VarValue, $VarName), __METHOD__ . '.setVarNameData');
             if ($VarName == "FossdashEnableDisable") {
-                $exec_fossdash_configuration_cmd = "python3 ".$LIBEXECDIR."/fossdash-publish.py fossdash_configure " . $VarValue;
+                $exec_fossdash_configuration_cmd = "python3 ".$LIBEXECDIR."/fossdash-publish.py fossdash_configure " . escapeshellarg($VarValue);
                 $output = shell_exec($exec_fossdash_configuration_cmd);
                 file_put_contents('php://stderr', "output of the cmd for fossology_configuration(enable/Disable) changed ={$output} \n");
             } elseif ($VarName == "FossologyInstanceName") {

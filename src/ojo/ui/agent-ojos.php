@@ -1,20 +1,7 @@
 <?php
-/***********************************************************
- * Copyright (C) 2019, Siemens AG
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ***********************************************************/
+# SPDX-FileCopyrightText: © 2019 Siemens AG
+
+# SPDX-License-Identifier: GPL-2.0-only
 
 namespace Fossology\Ojo\Ui;
 
@@ -22,9 +9,13 @@ use Fossology\Lib\Plugin\AgentPlugin;
 
 class OjosAgentPlugin extends AgentPlugin
 {
-  public function __construct() {
+  /** @var ojoDesc */
+  private $ojoDesc = "Scan files for licenses using SPDX-License-Identifier";
+
+  public function __construct()
+  {
     $this->Name = "agent_ojo";
-    $this->Title =  _("Ojo License Analysis, scanning for licenses using SPDX-License-Identifier");
+    $this->Title =  _("Ojo License Analysis <img src=\"images/info_16.png\" data-toggle=\"tooltip\" title=\"".$this->ojoDesc."\" class=\"info-bullet\"/>");
     $this->AgentName = "ojo";
 
     parent::__construct();
@@ -34,14 +25,19 @@ class OjosAgentPlugin extends AgentPlugin
   {
     return CheckARS($uploadId, $this->AgentName, "ojo agent", "ojo_ars");
   }
-  
+
   /**
    * @copydoc Fossology\Lib\Plugin\AgentPlugin::AgentAdd()
    * @see \Fossology\Lib\Plugin\AgentPlugin::AgentAdd()
    */
-  public function AgentAdd($jobId, $uploadId, &$errorMsg, $dependencies=array(), $arguments=null)
+  public function AgentAdd($jobId, $uploadId, &$errorMsg, $dependencies=[],
+      $arguments=null, $request=null, $unpackArgs=null)
   {
-    $unpackArgs = intval(@$_POST['scm']) == 1 ? '-I' : '';
+    if ($request != null && !is_array($request)) {
+      $unpackArgs = intval($request->get('scm', 0)) == 1 ? '-I' : '';
+    } else {
+      $unpackArgs = intval(@$_POST['scm']) == 1 ? '-I' : '';
+    }
     if ($this->AgentHasResults($uploadId) == 1) {
       return 0;
     }
@@ -53,9 +49,9 @@ class OjosAgentPlugin extends AgentPlugin
 
     $args = $unpackArgs;
     if (!empty($unpackArgs)) {
-      return $this->doAgentAdd($jobId, $uploadId, $errorMsg, array("agent_mimetype"),$uploadId,$args);
+      return $this->doAgentAdd($jobId, $uploadId, $errorMsg, array("agent_mimetype"),$uploadId,$args,$request);
     } else {
-      return $this->doAgentAdd($jobId, $uploadId, $errorMsg, array("agent_adj2nest"), $uploadId);
+      return $this->doAgentAdd($jobId, $uploadId, $errorMsg, array("agent_adj2nest"), $uploadId, null, $request);
     }
   }
 

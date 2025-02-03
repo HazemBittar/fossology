@@ -1,21 +1,10 @@
 <?php
-/***************************************************************
-Copyright (C) 2017 Siemens AG
-Copyright (C) 2021 Orange by Piotr Pszczola <piotr.pszczola@orange.com>
+/*
+ SPDX-FileCopyrightText: © 2017 Siemens AG
+ SPDX-FileCopyrightText: © 2021 Orange by Piotr Pszczola <piotr.pszczola@orange.com>
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-version 2 as published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ***************************************************************/
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 /**
  * @dir
  * @brief Data models/resources supported by REST api
@@ -80,6 +69,11 @@ class Analysis
    * Whether to schedule package agent or not
    */
   private $pkgagent;
+  /**
+   * @var boolean $compatibility
+   * Whether to schedule compatibility agent or not
+   */
+  private $compatibility;
 
   /**
    * Analysis constructor.
@@ -87,15 +81,17 @@ class Analysis
    * @param boolean $copyright
    * @param boolean $ecc
    * @param boolean $keyword
-   * @param boolean $mime
+   * @param boolean $mimetype
    * @param boolean $monk
    * @param boolean $nomos
+   * @param boolean $pkgagent
    * @param boolean $ojo
    * @param boolean $reso
-   * @param boolean $package
+   * @param boolean $pkgagent
+   * @param boolean $compatibility
    */
   public function __construct($bucket = false, $copyright = false, $ecc = false, $keyword = false,
-    $mimetype = false, $monk = false, $nomos = false, $ojo = false, $reso = false, $pkgagent = false)
+    $mimetype = false, $monk = false, $nomos = false, $ojo = false, $reso = false, $pkgagent = false, $compatibility = false)
   {
     $this->bucket = $bucket;
     $this->copyright = $copyright;
@@ -107,6 +103,7 @@ class Analysis
     $this->ojo = $ojo;
     $this->reso = $reso;
     $this->pkgagent = $pkgagent;
+    $this->compatibility = $compatibility;
   }
 
   /**
@@ -114,14 +111,14 @@ class Analysis
    * @param array $analysisArray Associative boolean array
    * @return Analysis Current object
    */
-  public function setUsingArray($analysisArray)
+  public function setUsingArray($analysisArray, $version = ApiVersion::V1)
   {
     if (array_key_exists("bucket", $analysisArray)) {
       $this->bucket = filter_var($analysisArray["bucket"],
         FILTER_VALIDATE_BOOLEAN);
     }
-    if (array_key_exists("copyright_email_author", $analysisArray)) {
-      $this->copyright = filter_var($analysisArray["copyright_email_author"],
+    if (array_key_exists(($version == ApiVersion::V2? "copyrightEmailAuthor" : "copyright_email_author"), $analysisArray)) {
+      $this->copyright = filter_var($analysisArray[$version == ApiVersion::V2? "copyrightEmailAuthor" : "copyright_email_author"],
         FILTER_VALIDATE_BOOLEAN);
     }
     if (array_key_exists("ecc", $analysisArray)) {
@@ -151,12 +148,16 @@ class Analysis
       $this->pkgagent = filter_var($analysisArray["package"],
         FILTER_VALIDATE_BOOLEAN);
     }
+    if (array_key_exists("compatibility", $analysisArray)) {
+      $this->compatibility = filter_var($analysisArray["compatibility"],
+          FILTER_VALIDATE_BOOLEAN);
+    }
     return $this;
   }
 
   /**
    * Set the values of Analysis based on string from DB
-   * @param array $analysisString String from DB settings
+   * @param string $analysisString String from DB settings
    * @return Analysis Current object
    */
   public function setUsingString($analysisString)
@@ -190,6 +191,9 @@ class Analysis
     }
     if (stristr($analysisString, "pkgagent")) {
       $this->pkgagent = true;
+    }
+    if (stristr($analysisString, "compatibility")) {
+      $this->compatibility = true;
     }
     return $this;
   }
@@ -275,6 +279,14 @@ class Analysis
     return $this->pkgagent;
   }
 
+  /**
+   * @return bool
+   */
+  public function getCompatibility()
+  {
+    return $this->compatibility;
+  }
+
   ////// Setters //////
   /**
    * @param boolean $bucket
@@ -357,22 +369,47 @@ class Analysis
   }
 
   /**
+   * @param bool $compatibility
+   */
+  public function setCompatibility($compatibility)
+  {
+    $this->compatibility = filter_var($compatibility, FILTER_VALIDATE_BOOLEAN);
+  }
+
+  /**
    * Get the object as an associative array
    * @return array
    */
-  public function getArray()
+  public function getArray($version = ApiVersion::V1)
   {
-    return [
-      "bucket"    => $this->bucket,
-      "copyright_email_author" => $this->copyright,
-      "ecc"       => $this->ecc,
-      "keyword"   => $this->keyword,
-      "mimetype"  => $this->mimetype,
-      "monk"      => $this->monk,
-      "nomos"     => $this->nomos,
-      "ojo"       => $this->ojo,
-      "reso"       => $this->reso,
-      "package"   => $this->pkgagent
-    ];
+    if ($version == ApiVersion::V2) {
+      return [
+        "bucket"    => $this->bucket,
+        "copyrightEmailAuthor" => $this->copyright,
+        "ecc"       => $this->ecc,
+        "keyword"   => $this->keyword,
+        "mimetype"  => $this->mimetype,
+        "monk"      => $this->monk,
+        "nomos"     => $this->nomos,
+        "ojo"       => $this->ojo,
+        "reso"      => $this->reso,
+        "package"   => $this->pkgagent,
+        "compatibility" => $this->compatibility
+      ];
+    } else {
+      return [
+        "bucket"    => $this->bucket,
+        "copyright_email_author" => $this->copyright,
+        "ecc"       => $this->ecc,
+        "keyword"   => $this->keyword,
+        "mimetype"  => $this->mimetype,
+        "monk"      => $this->monk,
+        "nomos"     => $this->nomos,
+        "ojo"       => $this->ojo,
+        "reso"      => $this->reso,
+        "package"   => $this->pkgagent,
+        "compatibility" => $this->compatibility
+      ];
+    }
   }
 }

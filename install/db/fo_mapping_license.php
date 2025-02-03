@@ -1,21 +1,9 @@
 <?php
+/*
+ SPDX-FileCopyrightText: © 2013 Hewlett-Packard Development Company, L.P.
 
-/***********************************************************
-  Copyright (C) 2013 Hewlett-Packard Development Company, L.P.
-
-  This program is free software; you can redistribute it and/or
-  modify it under the terms of the GNU General Public License
-  version 2 as published by the Free Software Foundation.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License along
-  with this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ***********************************************************/
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 /**
  * @file fo_mapping_license.php
@@ -519,7 +507,7 @@ function check_shortname($shortname)
   DBCheckResult($result, $sql, __FILE__, __LINE__);
   $row = pg_fetch_assoc($result);
   pg_free_result($result);
-  if ($row['rf_pk']) return $row['rf_pk'];
+  if ($row && $row['rf_pk']) return $row['rf_pk'];
   else return -1;
 }
 
@@ -538,17 +526,26 @@ function update_license($old_rf_pk, $new_rf_pk)
 {
   global $PG_CONN;
 
+  $updateTables = array(
+    "clearing_event",
+    "license_file",
+    "license_set_bulk",
+    "upload_clearing_license"
+  );
+
   /** transaction begin */
   $sql = "BEGIN;";
   $result_begin = pg_query($PG_CONN, $sql);
   DBCheckResult($result_begin, $sql, __FILE__, __LINE__);
   pg_free_result($result_begin);
 
-  /* Update license_file table, substituting the old_rf_id  with the new_rf_id */
-  $sql = "update license_file set rf_fk = $new_rf_pk where rf_fk = $old_rf_pk;";
-  $result_license_file = pg_query($PG_CONN, $sql);
-  DBCheckResult($result_license_file, $sql, __FILE__, __LINE__);
-  pg_free_result($result_license_file);
+  /* Update all relevant tables, substituting the old_rf_id with the new_rf_id */
+  foreach ($updateTables as $table) {
+    $sql = "update $table set rf_fk = $new_rf_pk where rf_fk = $old_rf_pk;";
+    $result_license_file = pg_query($PG_CONN, $sql);
+    DBCheckResult($result_license_file, $sql, __FILE__, __LINE__);
+    pg_free_result($result_license_file);
+  }
 
   /* Check if license_file_audit table exists */
   $sql = "select count(tablename) from pg_tables where tablename like 'license_file_audit';";

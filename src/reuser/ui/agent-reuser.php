@@ -1,20 +1,9 @@
 <?php
-/***********************************************************
- * Copyright (C) 2014-2018, Siemens AG
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ***********************************************************/
+/*
+ SPDX-FileCopyrightText: © 2014-2018 Siemens AG
+
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 /**
  * @dir
@@ -29,6 +18,7 @@ use Fossology\Lib\Dao\PackageDao;
 use Fossology\Lib\Dao\UploadDao;
 use Fossology\Lib\Plugin\AgentPlugin;
 use Fossology\Lib\Util\StringOperation;
+use Fossology\Scancode\Ui\ScancodesAgentPlugin;
 use Symfony\Component\HttpFoundation\Request;
 
 include_once(dirname(__DIR__) . "/agent/version.php");
@@ -40,6 +30,7 @@ include_once(dirname(__DIR__) . "/agent/version.php");
 class ReuserAgentPlugin extends AgentPlugin
 {
   const UPLOAD_TO_REUSE_SELECTOR_NAME = 'uploadToReuse';  ///< Form element name for main license to reuse
+  const REUSE_MODE = 'reuseMode';  ///< Form element name for main license to reuse
 
   /** @var UploadDao $uploadDao
    * Upload Dao object
@@ -108,7 +99,7 @@ class ReuserAgentPlugin extends AgentPlugin
     }
     $groupId = $request->get('groupId', Auth::getGroupId());
 
-    $getReuseValue = $request->get('reuseMode') ?: array();
+    $getReuseValue = $request->get(self::REUSE_MODE) ?: array();
     $reuserDependencies = array("agent_adj2nest");
 
     $reuseMode = UploadDao::REUSE_NONE;
@@ -129,14 +120,17 @@ class ReuserAgentPlugin extends AgentPlugin
       }
     }
 
-    $reuserDependencies = array_merge($reuserDependencies,
-      $this->getReuserDependencies($request));
+    list($agentDeps, $scancodeDeps) = $this->getReuserDependencies($request);
+    $reuserDependencies = array_unique(array_merge($reuserDependencies, $agentDeps));
+    if (!empty($scancodeDeps)) {
+      $reuserDependencies[] = $scancodeDeps;
+    }
 
     $this->createPackageLink($uploadId, $reuseUploadId, $groupId, $reuseGroupId,
       $reuseMode);
 
     return $this->doAgentAdd($jobId, $uploadId, $errorMsg,
-      array_unique($reuserDependencies), $uploadId);
+      $reuserDependencies, $uploadId, null, $request);
   }
 
   /**
@@ -175,6 +169,7 @@ class ReuserAgentPlugin extends AgentPlugin
   private function getReuserDependencies($request)
   {
     $dependencies = array();
+    $scancodeDeps = [];
     if ($request->get("Check_agent_nomos", false)) {
       $dependencies[] = "agent_nomos";
     }
@@ -190,7 +185,19 @@ class ReuserAgentPlugin extends AgentPlugin
     if ($request->get("Check_agent_copyright", false)) {
       $dependencies[] = "agent_copyright";
     }
-    return $dependencies;
+    if (!empty($request->get("scancodeFlags", []))) {
+      /**
+       * @var ScancodesAgentPlugin ScanCode agent
+       */
+      $agentScanCode = plugin_find('agent_scancode');
+      $flags = $request->get('scancodeFlags');
+      $unpackArgs = intval($request->get('scm', 0)) == 1 ? 'I' : '';
+      $scancodeDeps = [
+        "name" => "agent_scancode",
+        "args" => $agentScanCode->getScanCodeArgs($flags, $unpackArgs)
+      ];
+    }
+    return [$dependencies, $scancodeDeps];
   }
 }
 

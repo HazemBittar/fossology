@@ -1,20 +1,8 @@
-/*****************************************************************************
- * SPDX-License-Identifier: GPL-2.0
- * SPDX-FileCopyrightText: 2021 Sarita Singh <saritasingh.0425@gmail.com>
- * 
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ****************************************************************************/
+/*
+ SPDX-FileCopyrightText: © 2021 Sarita Singh <saritasingh.0425@gmail.com>
+
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 #ifndef SCANCODE_AGENT_UTILS_HPP
 #define SCANCODE_AGENT_UTILS_HPP
@@ -26,6 +14,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #include <boost/program_options.hpp>
 
@@ -50,8 +39,10 @@ int queryAgentId(fo::DbManager& dbManager);
 int writeARS(const State& state, int arsId, int uploadId, int success, fo::DbManager& dbManager);
 void bail(int exitval);
 bool processUploadId(const State& state, int uploadId, ScancodeDatabaseHandler& databaseHandler, bool ignoreFilesWithMimeType);
-bool matchPFileWithLicenses(const State& state, unsigned long pFileId, ScancodeDatabaseHandler& databaseHandler);
-bool matchFileWithLicenses(const State& state, const fo::File& file, ScancodeDatabaseHandler& databaseHandler);
+void mapFileNameWithId(unsigned long pFileId, unordered_map<unsigned long, string> &fileIdsMap, unordered_map<string, unsigned long> &fileIdsMapReverse, ScancodeDatabaseHandler &databaseHandler);
+void writeFileNameToTextFile(unordered_map<unsigned long, string> &fileIdsMap, string fileLocation);
+string getScanResult(const string& line);
+bool matchFileWithLicenses(const State& state, ScancodeDatabaseHandler& databaseHandler, string scancodeResult, string& fileName, unsigned long fileId);
 bool saveLicenseMatchesToDatabase(const State& state, const vector<Match>& matches, unsigned long pFileId, ScancodeDatabaseHandler& databaseHandler);
 bool saveOtherMatchesToDatabase(const State& state, const vector<Match>& matches, unsigned long pFileId, ScancodeDatabaseHandler& databaseHandler);
 bool parseCommandLine(int argc, char** argv, string& cliOption, bool& ignoreFilesWithMimeType);

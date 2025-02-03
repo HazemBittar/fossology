@@ -1,20 +1,9 @@
 <?php
 /*
- * Copyright (C) 2017, Siemens AG
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- */
+ SPDX-FileCopyrightText: © 2017 Siemens AG
+
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 namespace Fossology\ReportImport;
 
 use Fossology\Lib\Data\License;
@@ -37,7 +26,7 @@ class ReportImportDataItem
 
   public function setCustomText($customText)
   {
-    $this->customText = $customText;
+    $this->customText = trim($customText);
     return $this;
   }
 
@@ -45,9 +34,10 @@ class ReportImportDataItem
    * @param $name
    * @param $text
    * @param bool $spdxCompatible
+   * @param string $url
    * @return $this
    */
-  public function setLicenseCandidate($name, $text, $spdxCompatible)
+  public function setLicenseCandidate($name, $text, $spdxCompatible, $url = "")
   {
     $spdxCompatible = $spdxCompatible == true;
     $this->licenseCandidate = new License(
@@ -55,8 +45,8 @@ class ReportImportDataItem
       $this->licenseId,
       $name,
       "",
-      $text,
-      "", // TODO: $this->getValue($license,'seeAlso'),
+      trim($text),
+      $url,
       "", // TODO
       $spdxCompatible);
     return $this;

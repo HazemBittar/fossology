@@ -1,34 +1,24 @@
 <?php
-/***********************************************************
- Copyright (C) 2014 Hewlett-Packard Development Company, L.P.
- Copyright (c) 2021-2022 Orange
+/*
+ SPDX-FileCopyrightText: © 2014 Hewlett-Packard Development Company, L.P.
+ SPDX-FileCopyrightText: © 2021-2022 Orange
  Contributors: Piotr Pszczola, Bartlomiej Drozdz
 
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- version 2 as published by the Free Software Foundation.
-
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License along
- with this program; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ***********************************************************/
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 use Fossology\Lib\Auth\Auth;
+use Fossology\Lib\Dao\UserDao;
 use Fossology\Lib\Db\DbManager;
-use Fossology\Lib\Plugin\DefaultPlugin;
-use Symfony\Component\HttpFoundation\Request;
-use Fossology\UI\Api\Helper\RestHelper;
-use Fossology\UI\Api\Helper\AuthHelper;
-use Fossology\UI\Api\Models\Info;
-use Firebase\JWT\JWT;
 use Fossology\Lib\Exceptions\DuplicateTokenKeyException;
 use Fossology\Lib\Exceptions\DuplicateTokenNameException;
-use Fossology\Lib\Dao\UserDao;
+use Fossology\Lib\Plugin\DefaultPlugin;
+use Fossology\UI\Api\Exceptions\HttpBadRequestException;
+use Fossology\UI\Api\Exceptions\HttpForbiddenException;
+use Fossology\UI\Api\Helper\AuthHelper;
+use Fossology\UI\Api\Helper\DbHelper;
+use Fossology\UI\Api\Helper\RestHelper;
+use Symfony\Component\HttpFoundation\Request;
 
 class UserEditPage extends DefaultPlugin
 {
@@ -70,15 +60,16 @@ class UserEditPage extends DefaultPlugin
    * 2) User has chosen a user to edit from the 'userid' select list  \n
    * 3) User hit submit to update user data\n
    */
-  protected function handle(Request $request)
+  function handle(Request $request)
   {
-    global $SysConf;
     /* Is the session owner an admin? */
     $user_pk = Auth::getUserId();
     $SessionUserRec = $this->GetUserRec($user_pk);
     $SessionIsAdmin = $this->IsSessionAdmin($SessionUserRec);
     $newToken = "";
     $newClient = "";
+
+    $vars = array('refreshUri' => Traceback_uri() . "?mod=" . self::NAME);
 
     if (GetParm('new_client', PARM_STRING)) {
       try {
@@ -101,8 +92,6 @@ class UserEditPage extends DefaultPlugin
       $vars['content'] = _("Your request is not valid.");
       return $this->render('include/base.html.twig', $this->mergeWithDefault($vars));
     }
-
-    $vars = array('refreshUri' => Traceback_uri() . "?mod=" . self::NAME);
 
     /*
      * If this is a POST (the submit button was clicked), then process the
@@ -182,7 +171,7 @@ class UserEditPage extends DefaultPlugin
     $vars['userDescReadOnly'] = $SysConf['SYSCONFIG']['UserDescReadOnly'];
 
     /* For Admins, get the list of all users
-     * For non-admins, only show themself
+     * For non-admins, only show themselves
      */
     if ($SessionIsAdmin) {
       $stmt = __METHOD__ . '.asSessionAdmin';
@@ -270,10 +259,26 @@ class UserEditPage extends DefaultPlugin
       $Errors .= "<li>" . _("Passwords do not match.") . "</li>";
     }
 
-    /* Make sure email looks valid */
-    $Check = preg_replace("/[^a-zA-Z0-9@_.+-]/", "", $UserRec['user_email']);
-    if ($Check != $UserRec['user_email']) {
-      $Errors .= "<li>" . _("Invalid email address.") . "</li>";
+    $oldEmail = $this->dbManager->getSingleRow(
+      "SELECT user_email FROM users WHERE user_pk = $1;",
+      array($UserRec['user_pk']), __METHOD__."oldEmail");
+    if (strcmp($oldEmail['user_email'],$UserRec['user_email']) != 0) {
+      /* Make sure email looks valid */
+      $Check = preg_replace("/[^a-zA-Z0-9@_.+-]/", "", $UserRec['user_email']);
+      if ($Check != $UserRec['user_email']) {
+        $Errors .= "<li>" . _("Invalid email address.") . "</li>";
+      }
+
+      /* Make sure email is unique */
+      $email_count = 0;
+      if (!empty($UserRec['user_email'])) {
+        $email_count = $this->dbManager->getSingleRow(
+          "SELECT COUNT(*) as count FROM users WHERE user_email = $1 LIMIT 1;",
+          array($UserRec['user_email']), __METHOD__."email_count")["count"];
+      }
+      if ($email_count > 0) {
+        $Errors .= "<li>" . _("Email address already exists.") . "</li>";
+      }
     }
 
     /* Make sure user can't ask for blank password if policy is enabled */
@@ -300,7 +305,7 @@ class UserEditPage extends DefaultPlugin
     /* Check if the user is member of the group */
     if (!empty($UserRec['group_fk'])) {
       $group_map = $this->userDao->getUserGroupMap($UserRec['user_pk']);
-      if (array_search($UserRec['group_fk'], array_keys($group_map)) === false) {
+      if (!in_array($UserRec['group_fk'], array_keys($group_map))) {
         $Errors .= "<li>" . _("User is not member of provided group.") .
           "</li>";
       }
@@ -348,7 +353,7 @@ class UserEditPage extends DefaultPlugin
     DBCheckResult($result, $sql, __FILE__, __LINE__);
     pg_free_result($result);
 
-    return (null);
+    return null;
   } // UpdateUser()
 
   /**
@@ -356,6 +361,7 @@ class UserEditPage extends DefaultPlugin
    * \param $user_pk  fetch this users db record
    *
    * \return users db record
+   * @throws Exception
    */
   function GetUserRec($user_pk)
   {
@@ -375,7 +381,7 @@ class UserEditPage extends DefaultPlugin
    *
    * \return TRUE if the session user is an admin.  Otherwise, return FALSE
    */
-  private function IsSessionAdmin($UserRec)
+  function IsSessionAdmin($UserRec)
   {
     return ($UserRec['user_perm'] == PLUGIN_DB_ADMIN);
   }
@@ -388,6 +394,7 @@ class UserEditPage extends DefaultPlugin
    *         However, there may be additional fields from the data input form that are not in the
    *         users table.  These additional fields start with an underscore (_pass1, _pass2, _blank_pass)
    *         that come from the edit form.
+   * @throws Exception
    */
   function CreateUserRec(Request $request, $user_pk="")
   {
@@ -436,7 +443,7 @@ class UserEditPage extends DefaultPlugin
       if (!empty($UserRec['email_notify'])) {
         $UserRec['email_notify'] = 'y';
       }
-      $UserRec['user_agent_list'] = userAgents();
+      $UserRec['user_agent_list'] = is_null($request->get('user_agent_list')) ? userAgents() : $request->get('user_agent_list');
       $UserRec['default_bucketpool_fk'] = intval($request->get("default_bucketpool_fk"));
     }
     return $UserRec;
@@ -446,55 +453,64 @@ class UserEditPage extends DefaultPlugin
    * Generate new token based on the request sent by user.
    *
    * @param Request $request
+   * @return string The new token if no error occurred.
    * @throws \UnexpectedValueException Throws an exception if the request is
-   *         not valid.
-   * @return string The new token if no error occured.
+   * @throws DuplicateTokenKeyException Unable to generate new key.
+   * @throws DuplicateTokenNameException Duplicate token name in DB.
    * @uses Fossology::UI::Api::Helper::RestHelper::validateTokenRequest()
    * @uses Fossology::UI::Api::Helper::DbHelper::insertNewTokenKey()
    */
-  private function generateNewToken(Request $request)
+  function generateNewToken(Request $request)
   {
     global $container;
 
     $user_pk = Auth::getUserId();
-    $tokenName = GetParm('pat_name', PARM_STRING);
-    $tokenExpiry = GetParm('pat_expiry', PARM_STRING);
+    $tokenName = $request->get('pat_name');
+    $tokenExpiry = $request->get('pat_expiry');
     if ($_SESSION[Auth::USER_LEVEL] < 3) {
       $tokenScope = 'r';
     } else {
-      $tokenScope = GetParm('pat_scope', PARM_STRING);
+      $tokenScope = $request->get('pat_scope');
     }
     $tokenScope = array_search($tokenScope, RestHelper::SCOPE_DB_MAP);
+    if ($tokenScope === false) {
+      throw new \UnexpectedValueException("Invalid token scope " .
+        $request->get('pat_scope') . ".");
+    }
+    $tokenScope = RestHelper::SCOPE_DB_MAP[$tokenScope];
+    /** @var RestHelper $restHelper */
     $restHelper = $container->get('helper.restHelper');
-    $isTokenRequestValid = $restHelper->validateTokenRequest($tokenExpiry,
-      $tokenName, $tokenScope);
+    try {
+      $restHelper->validateTokenRequest($tokenExpiry, $tokenName, $tokenScope);
+    } catch (HttpBadRequestException $e) {
+      throw new \UnexpectedValueException($e->getMessage());
+    }
 
-    if ($isTokenRequestValid !== true) {
-      throw new \UnexpectedValueException($isTokenRequestValid->getMessage());
-    } else {
-      $restDbHelper = $container->get('helper.dbHelper');
+    /** @var DbHelper $restDbHelper */
+    $restDbHelper = $container->get('helper.dbHelper');
+    $key = bin2hex(
+      openssl_random_pseudo_bytes(RestHelper::TOKEN_KEY_LENGTH / 2));
+    try {
+      $jti = $restDbHelper->insertNewTokenKey($user_pk, $tokenExpiry,
+        $tokenScope, $tokenName, $key);
+    } catch (DuplicateTokenKeyException $e) {
+      // Key already exists, try again.
       $key = bin2hex(
         openssl_random_pseudo_bytes(RestHelper::TOKEN_KEY_LENGTH / 2));
       try {
         $jti = $restDbHelper->insertNewTokenKey($user_pk, $tokenExpiry,
-          RestHelper::SCOPE_DB_MAP[$tokenScope], $tokenName, $key);
+          $tokenScope, $tokenName, $key);
       } catch (DuplicateTokenKeyException $e) {
-        // Key already exists, try again.
-        $key = bin2hex(
-          openssl_random_pseudo_bytes(RestHelper::TOKEN_KEY_LENGTH / 2));
-        try {
-          $jti = $restDbHelper->insertNewTokenKey($user_pk, $tokenExpiry,
-            RestHelper::SCOPE_DB_MAP[$tokenScope], $tokenName, $key);
-        } catch (DuplicateTokenKeyException $e) {
-          // New key also failed, give up!
-          throw new DuplicateTokenKeyException("Please try again later.");
-        }
+        // New key also failed, give up!
+        throw new DuplicateTokenKeyException("Please try again later.");
       } catch (DuplicateTokenNameException $e) {
-        throw new \UnexpectedValueException($e->getMessage());
+        throw $e;
       }
-      return $this->authHelper->generateJwtToken($tokenExpiry,
-        $jti['created_on'], $jti['jti'], $tokenScope, $key);
+    } catch (DuplicateTokenNameException $e) {
+      throw new \UnexpectedValueException($e->getMessage());
     }
+    return $this->authHelper->generateJwtToken($tokenExpiry,
+      $jti['created_on'], $jti['jti'], $tokenScope, $key);
   }
 
   /**
@@ -504,7 +520,7 @@ class UserEditPage extends DefaultPlugin
    * template. Also check if the token is expired.
    * @return array
    */
-  private function getListOfActiveTokens()
+  function getListOfActiveTokens()
   {
     $user_pk = Auth::getUserId();
     $sql = "SELECT pat_pk, user_fk, expire_on, token_scope, token_name, created_on, active " .
@@ -514,16 +530,19 @@ class UserEditPage extends DefaultPlugin
       __METHOD__ . ".getActiveTokens");
     $response = [];
     foreach ($rows as $row) {
-      if ($this->authHelper->isTokenActive($row, $row["pat_pk"]) === true) {
-        $entry = [
-          "id" => $row["pat_pk"] . "." . $user_pk,
-          "name" => $row["token_name"],
-          "created" => $row["created_on"],
-          "expire" => $row["expire_on"],
-          "scope" => $row["token_scope"]
-        ];
-        $response[] = $entry;
+      try {
+        $this->authHelper->isTokenActive($row, $row["pat_pk"]);
+      } catch (HttpForbiddenException $_) {
+        continue;
       }
+      $entry = [
+        "id" => $row["pat_pk"] . "." . $user_pk,
+        "name" => $row["token_name"],
+        "created" => $row["created_on"],
+        "expire" => $row["expire_on"],
+        "scope" => $row["token_scope"]
+      ];
+      $response[] = $entry;
     }
     array_multisort(array_column($response, "created"), SORT_ASC, $response);
     return $response;
@@ -533,13 +552,16 @@ class UserEditPage extends DefaultPlugin
    * Get a list of expired tokens for current user.
    * @return array
    */
-  private function getListOfExpiredTokens()
+  function getListOfExpiredTokens()
   {
     $user_pk = Auth::getUserId();
+    $retentionPeriod = $this->getMaxExpiredTokenRetentionPeriod();
     $sql = "SELECT pat_pk, user_fk, expire_on, token_scope, token_name, created_on " .
       "FROM personal_access_tokens " .
-      "WHERE user_fk = $1 AND active = false AND client_id IS NULL;";
-    $rows = $this->dbManager->getRows($sql, [$user_pk],
+      "WHERE user_fk = $1 AND active = false " .
+      "AND expire_on >= (SELECT CURRENT_DATE - ($2)::integer) " .
+      "AND client_id IS NULL;";
+    $rows = $this->dbManager->getRows($sql, [$user_pk, $retentionPeriod],
       __METHOD__ . ".getExpiredTokens");
     $response = [];
     foreach ($rows as $row) {
@@ -582,7 +604,7 @@ class UserEditPage extends DefaultPlugin
    * @param Request $request
    * @throws \UnexpectedValueException Throws an exception if the request is
    *         not valid.
-   * @return boolean True if no error occured.
+   * @return string Display message
    * @uses Fossology::UI::Api::Helper::RestHelper::validateNewOauthClient()
    * @uses Fossology::UI::Api::Helper::DbHelper::addNewClient()
    */
@@ -598,17 +620,18 @@ class UserEditPage extends DefaultPlugin
     } else {
       $clientScope = GetParm('client_scope', PARM_STRING);
     }
+    /** @var RestHelper $restHelper */
     $restHelper = $container->get('helper.restHelper');
-    $isTokenRequestValid = $restHelper->validateNewOauthClient($user_pk,
-      $clientName, $clientScope, $clientId);
-
-    if ($isTokenRequestValid !== true) {
-      throw new \UnexpectedValueException($isTokenRequestValid->getMessage());
-    } else {
-      $restHelper->getDbHelper()->addNewClient($clientName, $user_pk,
-        $clientId, $clientScope);
-      return "Client \"$clientName\" added with ID \"$clientId\"";
+    try {
+      $restHelper->validateNewOauthClient($user_pk, $clientName, $clientScope,
+        $clientId);
+    } catch (HttpBadRequestException $e) {
+      throw new \UnexpectedValueException($e->getMessage());
     }
+
+    $restHelper->getDbHelper()->addNewClient($clientName, $user_pk,
+      $clientId, $clientScope);
+    return "Client \"$clientName\" added with ID \"$clientId\"";
   }
 
   /**
@@ -669,6 +692,15 @@ class UserEditPage extends DefaultPlugin
     array_multisort(array_column($response, "created"), SORT_ASC, $response);
     return $response;
   }
-}
 
+  /**
+   * @brief getMaxExpiredTokenRetentionPeriod() get the refresh time from DB.
+   * @Returns number of days to retain expired token.
+   **/
+  public function getMaxExpiredTokenRetentionPeriod()
+  {
+    global $SysConf;
+    return $SysConf['SYSCONFIG']['PATMaxPostExpiryRetention'];
+  } /* getMaxExpiredTokenRetentionPeriod() */
+}
 register_plugin(new UserEditPage());

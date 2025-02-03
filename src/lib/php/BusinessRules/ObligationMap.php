@@ -1,19 +1,8 @@
 <?php
 /*
-Copyright (C) 2017, Siemens AG
+ SPDX-FileCopyrightText: © 2017 Siemens AG
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-version 2 as published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ SPDX-License-Identifier: GPL-2.0-only
 */
 
 namespace Fossology\Lib\BusinessRules;
@@ -281,5 +270,32 @@ class ObligationMap
     foreach ($licenses as $license) {
         $this->unassociateLicenseFromObligation($obligationId, $license, $candidate);
     }
+  }
+
+  /**
+   * Get obligation by id
+   * @param int $ob_pk Obligation ID
+   * @return array Obligation from DB
+   */
+  public function getObligationById($ob_pk)
+  {
+    $sql = "SELECT * FROM obligation_ref WHERE ob_pk = $1;";
+    return $this->dbManager->getSingleRow($sql, [$ob_pk]);
+  }
+
+  /**
+   * Delete obligation and unassociate all licenses.
+   *
+   * @param int $ob_pk Obligation ID
+   * @return void
+   */
+  public function deleteObligation($ob_pk)
+  {
+    $stmt = __METHOD__ . '.deleteObligation';
+    $sql = "DELETE FROM obligation_ref WHERE ob_pk = $1";
+    $this->dbManager->getSingleRow($sql, [$ob_pk], $stmt);
+
+    $this->unassociateLicenseFromObligation($ob_pk);
+    $this->unassociateLicenseFromObligation($ob_pk, 0, true);
   }
 }

@@ -1,20 +1,10 @@
 <?php
-/***********************************************************
- * Copyright (C) 2014-2015, Siemens AG
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ***********************************************************/
+/*
+ SPDX-FileCopyrightText: © 2014-2015 Siemens AG
+
+ SPDX-License-Identifier: GPL-2.0-only
+*/
+
 /**
  * @namespace Fossology::DeciderJob::UI
  * @brief DeciderJobAgent's UI
@@ -48,14 +38,15 @@ class DeciderJobAgentPlugin extends AgentPlugin
    */
   function preInstall()
   {
-    // no menue entry
+    // no menu entry
   }
 
   /**
    * @copydoc Fossology::Lib::Plugin::AgentPlugin::AgentAdd()
    * @see Fossology::Lib::Plugin::AgentPlugin::AgentAdd()
    */
-  public function AgentAdd($jobId, $uploadId, &$errorMsg, $dependencies=array(), $conflictStrategyId=null)
+  public function AgentAdd($jobId, $uploadId, &$errorMsg, $dependencies=[],
+      $arguments=null, $request=null, $unpackArgs=null)
   {
     $dependencies[] = "agent_adj2nest";
 
@@ -64,9 +55,10 @@ class DeciderJobAgentPlugin extends AgentPlugin
       return $jobQueueId;
     }
 
-    $args = ($conflictStrategyId !== null) ? $this::CONFLICT_STRATEGY_FLAG.$conflictStrategyId : '';
+    $args = ($arguments !== null) ? $this::CONFLICT_STRATEGY_FLAG.$arguments : '';
 
-    return $this->doAgentAdd($jobId, $uploadId, $errorMsg, $dependencies, $uploadId, $args);
+    return $this->doAgentAdd($jobId, $uploadId, $errorMsg, $dependencies,
+        $uploadId, $args, $request);
   }
 }
 

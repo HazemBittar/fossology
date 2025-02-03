@@ -1,19 +1,8 @@
 <?php
 /*
-Copyright (C) 2014, Siemens AG
+ SPDX-FileCopyrightText: © 2014 Siemens AG
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-version 2 as published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ SPDX-License-Identifier: GPL-2.0-only
 */
 
 namespace Fossology\Lib\Util;
@@ -89,5 +78,15 @@ class ArrayOperationTest extends \PHPUnit\Framework\TestCase
     assertThat(ArrayOperation::multiSearch(array(100,102),$haystack),is(0));
     assertThat(ArrayOperation::multiSearch(array(200),$haystack),is(false));
     assertThat(ArrayOperation::multiSearch(array(200,102),$haystack),is(2));
+  }
+
+  public function testArrayKeyExists()
+  {
+    $haystack = ["Key1" => "Value1", "Key2" => "Value2", "Key3" => "Value3"];
+    $this->assertTrue(ArrayOperation::arrayKeysExists($haystack, ["Key1", "Key2", "Key3"]));
+    $this->assertTrue(ArrayOperation::arrayKeysExists($haystack, ["Key1", "Key2"]));
+    $this->assertTrue(ArrayOperation::arrayKeysExists($haystack, ["Key3"]));
+    $this->assertFalse(ArrayOperation::arrayKeysExists($haystack, ["Key11", "Key2", "Key3"]));
+    $this->assertFalse(ArrayOperation::arrayKeysExists($haystack, ["Key11"]));
   }
 }

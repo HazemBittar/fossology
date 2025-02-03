@@ -1,20 +1,9 @@
 <?php
 /*
-Copyright (C) 2014-2015, Siemens AG
-Author: Steffen Weber
+ SPDX-FileCopyrightText: © 2014-2015 Siemens AG
+ Author: Steffen Weber
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-version 2 as published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ SPDX-License-Identifier: GPL-2.0-only
 */
 
 namespace Fossology\Lib\Dao;
@@ -24,6 +13,8 @@ use Fossology\Lib\Data\AgentRef;
 use Fossology\Lib\Data\LicenseMatch;
 use Fossology\Lib\Data\LicenseRef;
 use Fossology\Lib\Data\Tree\ItemTreeBounds;
+use Fossology\Lib\Db\DbManager;
+use Fossology\Lib\Test\TestLiteDb;
 use Fossology\Lib\Test\TestPgDb;
 
 class LicenseDaoTest extends \PHPUnit\Framework\TestCase
@@ -32,11 +23,15 @@ class LicenseDaoTest extends \PHPUnit\Framework\TestCase
   private $testDb;
   /** @var DbManager */
   private $dbManager;
+  /** @var LicenseDao */
+  private $licenseDao;
 
   protected function setUp() : void
   {
     $this->testDb = new TestPgDb();
+    $this->testDb->createPlainTables(array('obligation_ref','obligation_map','obligation_candidate_map'));
     $this->dbManager = $this->testDb->getDbManager();
+    $this->licenseDao = new LicenseDao($this->dbManager);
     $this->assertCountBefore = \Hamcrest\MatcherAssert::getCount();
   }
 
@@ -88,7 +83,7 @@ class LicenseDaoTest extends \PHPUnit\Framework\TestCase
     $itemTreeBounds = new ItemTreeBounds($uploadtreeId,"uploadtree",$uploadID,$left,$right);
     $matches = $licDao->getAgentFileLicenseMatches($itemTreeBounds);
 
-    $licenseRef = new LicenseRef($licenseRefNumber, $lic0['rf_shortname'], $lic0['rf_fullname']);
+    $licenseRef = new LicenseRef($licenseRefNumber, $lic0['rf_shortname'], $lic0['rf_fullname'], $lic0['rf_spdx_id']);
     $agentRef = new AgentRef($agentId, $agentName, $agentRev);
     $expected = array( new LicenseMatch($pfileId, $licenseRef, $agentRef, $licenseFileId, $matchPercent) );
 
@@ -96,7 +91,6 @@ class LicenseDaoTest extends \PHPUnit\Framework\TestCase
     assertThat($matches[0], is(anInstanceOf(LicenseMatch::class)) );
     $this->addToAssertionCount(\Hamcrest\MatcherAssert::getCount()-$this->assertCountBefore);
   }
-
 
   public function testGetLicenseByShortName()
   {
@@ -431,7 +425,7 @@ class LicenseDaoTest extends \PHPUnit\Framework\TestCase
     $itemTreeBounds = new ItemTreeBounds($uploadtreeId,"uploadtree",$uploadID,$left,$right);
     $matches = $licDao->getAgentFileLicenseMatches($itemTreeBounds,LicenseMap::CONCLUSION);
 
-    $licenseRef = new LicenseRef($licRefId, $lic0['rf_shortname'], $lic0['rf_fullname']);
+    $licenseRef = new LicenseRef($licRefId, $lic0['rf_shortname'], $lic0['rf_fullname'], $lic0['rf_spdx_id']);
     $agentRef = new AgentRef($agentId, $agentName, $agentRev);
     $expected = array( new LicenseMatch($pfileId, $licenseRef, $agentRef, $licenseFileId, $matchPercent) );
 

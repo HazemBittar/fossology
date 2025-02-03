@@ -1,26 +1,14 @@
 <?php
 /*
-Copyright (C) 2014-2018,2020-2022, Siemens AG
-Author: Johannes Najjar
+ SPDX-FileCopyrightText: © 2014-2018, 2020-2022 Siemens AG
+ Author: Johannes Najjar
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-version 2 as published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ SPDX-License-Identifier: GPL-2.0-only
 */
 
 namespace Fossology\Lib\Dao;
 
 use Fossology\Lib\BusinessRules\ClearingDecisionProcessor;
-use Fossology\Lib\Data\AgentRef;
 use Fossology\Lib\Data\Clearing\ClearingEvent;
 use Fossology\Lib\Data\Clearing\ClearingEventBuilder;
 use Fossology\Lib\Data\Clearing\ClearingEventTypes;
@@ -32,7 +20,6 @@ use Fossology\Lib\Data\LicenseRef;
 use Fossology\Lib\Data\Tree\ItemTreeBounds;
 use Fossology\Lib\Db\DbManager;
 use Fossology\Lib\Proxy\UploadTreeProxy;
-use Fossology\Lib\Proxy\ScanJobProxy;
 use Fossology\Lib\Util\StringOperation;
 use Monolog\Logger;
 
@@ -138,6 +125,7 @@ class ClearingDao
             SELECT
               lr.rf_pk AS license_id,
               lr.rf_shortname AS shortname,
+              lr.rf_spdx_id AS spdx_id,
               lr.rf_fullname AS fullname
             FROM decision
               INNER JOIN clearing_decision_event cde ON cde.clearing_decision_fk = decision.id
@@ -145,7 +133,7 @@ class ClearingDao
                 (ce.clearing_event_pk = cde.clearing_event_fk AND NOT ce.removed)
               INNER JOIN license_ref lr ON lr.rf_pk = ce.rf_fk
             WHERE type_id != $".count($params)."
-            GROUP BY license_id,shortname,fullname";
+            GROUP BY license_id,shortname,fullname,spdx_id";
 
     $this->dbManager->prepare($statementName, $sql);
 
@@ -153,7 +141,7 @@ class ClearingDao
 
     $licenses = array();
     while ($row = $this->dbManager->fetchArray($res)) {
-      $licenses[] = new LicenseRef($row['license_id'], $row['shortname'], $row['fullname']);
+      $licenses[] = new LicenseRef($row['license_id'], $row['shortname'], $row['fullname'], $row['spdx_id']);
     }
     $this->dbManager->freeResult($res);
 
@@ -161,10 +149,11 @@ class ClearingDao
   }
 
 
-   /**
+  /**
    * @param ItemTreeBounds $itemTreeBounds
    * @param int $groupId
    * @param bool $onlyCurrent
+   * @param bool $forClearingHistory
    * @return ClearingDecision[]
    */
   function getFileClearings(ItemTreeBounds $itemTreeBounds, $groupId, $onlyCurrent=true, $forClearingHistory=false)
@@ -229,6 +218,7 @@ class ClearingDao
               ce.user_fk as event_user_id,
               ce.group_fk as event_group_id,
               lr.rf_pk AS license_id,
+              lr.rf_spdx_id AS spdx_id,
               lr.rf_shortname AS shortname,
               lr.rf_fullname AS fullname,
               ce.removed AS removed,
@@ -259,6 +249,7 @@ class ClearingDao
       $itemId = $row['itemid'];
       $licenseId = $row['license_id'];
       $eventId = $row['event_id'];
+      $licenseSpdxId = $row['spdx_id'];
       $licenseShortName = $row['shortname'];
       $licenseName = $row['fullname'];
       $licenseIsRemoved = $row['removed'];
@@ -298,7 +289,7 @@ class ClearingDao
       if ($licenseId !== null) {
         if (!array_key_exists($eventId, $clearingEventCache)) {
           if (!array_key_exists($licenseId, $this->licenseRefCache)) {
-            $this->licenseRefCache[$licenseId] = new LicenseRef($licenseId, $licenseShortName, $licenseName);
+            $this->licenseRefCache[$licenseId] = new LicenseRef($licenseId, $licenseShortName, $licenseName, $licenseSpdxId);
           }
           $licenseRef = $this->licenseRefCache[$licenseId];
           $clearingEventCache[$eventId] = $this->buildClearingEvent($eventId, $eventUserId, $eventGroupId, $licenseRef, $licenseIsRemoved, $eventType, $reportInfo, $comment, $acknowledgement);
@@ -424,7 +415,7 @@ INSERT INTO clearing_decision (
     }
 
     $stmt = __METHOD__;
-    $sql = 'SELECT rf_fk,rf_shortname,rf_fullname,clearing_event_pk,comment,type_fk,removed,reportinfo,acknowledgement, EXTRACT(EPOCH FROM date_added) AS ts_added
+    $sql = 'SELECT rf_fk,rf_shortname,rf_spdx_id,rf_fullname,clearing_event_pk,comment,type_fk,removed,reportinfo,acknowledgement, EXTRACT(EPOCH FROM date_added) AS ts_added
              FROM clearing_event LEFT JOIN license_ref ON rf_fk=rf_pk
              WHERE uploadtree_fk=$1 AND group_fk=$2 AND date_added>to_timestamp($3)
              ORDER BY clearing_event_pk ASC';
@@ -432,7 +423,7 @@ INSERT INTO clearing_decision (
     $res = $this->dbManager->execute($stmt,array($itemTreeBounds->getItemId(),$groupId,$date));
 
     while ($row = $this->dbManager->fetchArray($res)) {
-      $licenseRef = new LicenseRef($row['rf_fk'],$row['rf_shortname'],$row['rf_fullname']);
+      $licenseRef = new LicenseRef($row['rf_fk'],$row['rf_shortname'],$row['rf_fullname'],$row['rf_spdx_id']);
       $events[$row['rf_fk']] = ClearingEventBuilder::create()
               ->setEventId($row['clearing_event_pk'])
               ->setComment($row['comment'])
@@ -579,11 +570,12 @@ INSERT INTO clearing_decision (
    * @param int $eventId
    * @param int $userId
    * @param int $groupId
-   * @param int $licenseRef
+   * @param LicenseRef $licenseRef
    * @param $licenseIsRemoved
    * @param $type
    * @param $reportInfo
    * @param string $comment
+   * @param $acknowledgement
    * @return ClearingEvent
    */
   protected function buildClearingEvent($eventId, $userId, $groupId, $licenseRef, $licenseIsRemoved, $type, $reportInfo, $comment, $acknowledgement)
@@ -623,7 +615,7 @@ INSERT INTO clearing_decision (
   /**
    * @param int $uploadTreeId
    * @param int $groupId
-   * @param Char $decisionType
+   * @param int $decisionType
    */
   public function isDecisionCheck($uploadTreeId, $groupId, $decisionType)
   {
@@ -757,19 +749,21 @@ INSERT INTO clearing_decision (
             SELECT
               COUNT(DISTINCT itemid) AS count,
               lr.rf_shortname AS shortname,
+              lr.rf_spdx_id AS spdx_id,
               rf_pk
             FROM decision
               LEFT JOIN clearing_decision_event cde ON cde.clearing_decision_fk = decision.id
               LEFT JOIN clearing_event ce ON ce.clearing_event_pk = cde.clearing_event_fk
               LEFT JOIN license_ref lr ON lr.rf_pk = ce.rf_fk
             WHERE (NOT ce.removed OR clearing_event_pk IS NULL) AND type_id!=$".count($params)."
-            GROUP BY shortname,rf_pk";
+            GROUP BY shortname,rf_pk,spdx_id";
 
     $this->dbManager->prepare($statementName, $sql);
     $res = $this->dbManager->execute($statementName, $params);
     $multiplicity = array();
     while ($row = $this->dbManager->fetchArray($res)) {
-      $shortname= empty($row['rf_pk']) ? LicenseDao::NO_LICENSE_FOUND : $row['shortname'];
+      $shortname = empty($row['rf_pk']) ? LicenseDao::NO_LICENSE_FOUND : $row['shortname'];
+      $row['spdx_id'] = LicenseRef::convertToSpdxId($shortname, $row['spdx_id']);
       $multiplicity[$shortname] = $row;
     }
     $this->dbManager->freeResult($res);
@@ -779,7 +773,7 @@ INSERT INTO clearing_decision (
 
   /**
    * @param int $decisionType
-   * @return actual DecisionTypes
+   * @return int actual DecisionTypes
    */
   public function getDecisionType($decisionType)
   {
@@ -796,6 +790,7 @@ INSERT INTO clearing_decision (
    * @param ItemTreeBounds $itemTreeBounds
    * @param int $groupId
    * @param int $userId
+   * @param $decisionMark
    */
   public function markDirectoryAsDecisionType(ItemTreeBounds $itemTreeBounds, $groupId, $userId, $decisionMark)
   {
@@ -807,6 +802,7 @@ INSERT INTO clearing_decision (
    * @param ItemTreeBounds $itemTreeBounds
    * @param int $groupId
    * @param int $userId
+   * @param $decisionMark
    */
   public function deleteDecisionTypeFromDirectory(ItemTreeBounds $itemTreeBounds, $groupId, $userId, $decisionMark)
   {
@@ -818,6 +814,8 @@ INSERT INTO clearing_decision (
    * @param ItemTreeBounds $itemTreeBounds
    * @param int $groupId
    * @param int $userId
+   * @param bool $removeDecision
+   * @param int $decisionMark
    */
   protected function markDirectoryAsDecisionTypeRec(ItemTreeBounds $itemTreeBounds, $groupId, $userId, $removeDecision=false, $decisionMark=DecisionTypes::IRRELEVANT)
   {
@@ -826,7 +824,7 @@ INSERT INTO clearing_decision (
     $a = count($params);
     $options = array(UploadTreeProxy::OPT_SKIP_THESE=>'noLicense',
                      UploadTreeProxy::OPT_ITEM_FILTER=>' AND (lft BETWEEN $1 AND $2)',
-                     UploadTreeProxy::OPT_GROUP_ID=>'$'.$a.'');
+                     UploadTreeProxy::OPT_GROUP_ID=>'$'.$a);
     $uploadTreeProxy = new UploadTreeProxy($itemTreeBounds->getUploadId(), $options, $itemTreeBounds->getUploadTreeTableName());
     if (!$removeDecision) {
       $sql = $uploadTreeProxy->asCTE() .
@@ -882,7 +880,7 @@ INSERT INTO clearing_decision (
   }
 
   /**
-   * @param uploadId
+   * @param int $uploadId
    * @param int $groupId
    * @return array $ids
    */
@@ -912,7 +910,7 @@ INSERT INTO clearing_decision (
   }
 
   /**
-   * @param uploadId
+   * @param int $uploadId
    * @param int $groupId
    * @param int $licenseId
    */
@@ -926,6 +924,7 @@ INSERT INTO clearing_decision (
    * @param ItemTreeBounds $itemTreeBounds
    * @param int $groupId
    * @param bool $onlyCurrent
+   * @param string $decisionMark
    * @return ClearingDecision[]
    */
   function getFilesForDecisionTypeFolderLevel(ItemTreeBounds $itemTreeBounds, $groupId, $onlyCurrent=true, $decisionMark="")
@@ -937,9 +936,10 @@ INSERT INTO clearing_decision (
     $params[] = $decisionMark;
     $sql = "$decisionsCte
             SELECT
-	    itemid as uploadtree_pk,
+            itemid as uploadtree_pk,
             lr.rf_shortname AS shortname,
-	    comment
+            lr.rf_spdx_id AS spdx_id,
+            comment
             FROM decision
             LEFT JOIN clearing_decision_event cde ON cde.clearing_decision_fk = decision.id
             LEFT JOIN clearing_event ce ON ce.clearing_event_pk = cde.clearing_event_fk
@@ -980,15 +980,15 @@ INSERT INTO clearing_decision (
   }
 
   /**
-   * @param uploadTreeId
-   * @return count
+   * @param int $uploadTreeId
+   * @return int count
    */
   public function getCandidateLicenseCountForCurrentDecisions($uploadTreeId, $uploadId=0)
   {
     $params = array();
     if (!empty($uploadId)) {
-      $itemTreeBounds = $this->uploadDao->getParentItemBounds($uploadId, $uploadTreeTableName);
       $uploadTreeTableName = $this->uploadDao->getUploadtreeTableName($uploadId);
+      $itemTreeBounds = $this->uploadDao->getParentItemBounds($uploadId, $uploadTreeTableName);
       $params[] = $itemTreeBounds->getLeft();
       $params[] = $itemTreeBounds->getRight();
       $condition = "UT.lft BETWEEN $1 AND $2";
@@ -1013,8 +1013,8 @@ INSERT INTO clearing_decision (
   }
 
   /**
-   * @param uploadId
-   * @return count
+   * @param int $uploadId
+   * @return int count
    */
   public function marklocalDecisionsAsGlobal($uploadId)
   {

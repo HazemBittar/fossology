@@ -1,21 +1,10 @@
 <?php
 /*
-Copyright (C) 2008-2012 Hewlett-Packard Development Company, L.P.
-Copyright (C) 2014, Siemens AG
-Author: Johannes Najjar
+ SPDX-FileCopyrightText: © 2008-2012 Hewlett-Packard Development Company, L.P.
+ SPDX-FileCopyrightText: © 2014 Siemens AG
+ Author: Johannes Najjar
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-version 2 as published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ SPDX-License-Identifier: GPL-2.0-only
 */
 
 namespace Fossology\Lib\Dao;
@@ -53,7 +42,6 @@ class AgentDao
   public function createArsTable($agentName)
   {
     $tableName = $this->getArsTableName($agentName);
-
     $this->dbManager->queryOnce("CREATE TABLE ".$tableName."() INHERITS(ars_master);
     ALTER TABLE ONLY ".$tableName." ADD CONSTRAINT ".$tableName."_agent_fk_fkc FOREIGN KEY (agent_fk) REFERENCES agent(agent_pk);
     ALTER TABLE ONLY ".$tableName." ADD CONSTRAINT ".$tableName."_upload_fk_fkc FOREIGN KEY (upload_fk) REFERENCES upload(upload_pk) ON DELETE CASCADE", __METHOD__);
@@ -164,7 +152,6 @@ class AgentDao
     return $resultArray;
   }
 
-
   /**
    * @brief Returns the list of running or failed agent_pk s. Before latest successful run
    *
@@ -194,9 +181,7 @@ class AgentDao
   {
     $latestScannerProxy = new \Fossology\Lib\Proxy\LatestScannerProxy($uploadId, $agentNames, "latest_scanner$uploadId");
 
-    $agentLatestMap = $latestScannerProxy->getNameToIdMap();
-
-    return $agentLatestMap;
+    return $latestScannerProxy->getNameToIdMap();
   }
 
   /**

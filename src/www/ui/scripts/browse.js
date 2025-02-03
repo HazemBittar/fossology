@@ -1,20 +1,9 @@
 /*
- Copyright (C) 2014-2015, Siemens AG
+ SPDX-FileCopyrightText: © 2014-2015 Siemens AG
  Author: Steffen Weber, Johannes Najjar
 
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- version 2 as published by the Free Software Foundation.
-
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License along
- with this program; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- */
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 var myKey = 0;
 var myVal = 0;
@@ -44,8 +33,15 @@ $(document).ready(function () {
         openCommentModal(source[0],source[1],source[2]);
     } );
     $('select.goto-active-option').change(function() {
-      var url = $(this).val();
-      if(url){ window.location = url;}
+      const url = $(this).val();
+      const optionText = $(this).find("option:selected").text();
+      let userResponse = true
+      if (optionText === "Delete") {
+        userResponse = confirm("Are you sure you want to delete this upload ?")
+      } 
+      if(url && userResponse) {
+        window.location = url;
+      }
     });
   });
   commentModal = $('#commentModal').modal('hide');

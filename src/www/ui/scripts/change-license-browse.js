@@ -1,20 +1,9 @@
 /*
- Copyright (C) 2014-2018,2021 Siemens AG
+ SPDX-FileCopyrightText: © 2014-2018, 2021 Siemens AG
  Author: Daniele Fognini, Johannes Najjar
 
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- version 2 as published by the Free Software Foundation.
-
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License along
- with this program; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- */
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 function clearingSuccess(data) {
   location.reload();
@@ -36,11 +25,13 @@ $(document).ready(function () {
 
   $("#markDecisionAdd").click(function() {
     var decision = $("#markDecision").val();
+    $('#loader').show();
     return markDecisions(decision, false);
   });
 
   $("#markDecisionRemove").click(function() {
     var decision = $("#removeDecision").val();
+    $('#loader').show();
     return markDecisions(decision, true);
   });
 });
@@ -55,11 +46,14 @@ $("#textModal").on('hide.bs.modal', function (e) {
 
 function openBulkModal(uploadTreeId) {
   bulkModal = $('#bulkModal').modal('hide');
+  $('#bulkScope').val("f");
+  $('#bulkScope').attr("disabled", true);
   $('#uploadTreeId').val(uploadTreeId);
   bulkModal.toggle();
 }
 
 function closeBulkModal() {
+  $('#editFilter').val(0);
   $('#bulkModal').hide();
 }
 
@@ -84,6 +78,7 @@ function openUserModal(uploadTreeId) {
 }
 
 function closeUserModal() {
+  $('#editFilter').val(0);
   userModal.modal('hide');
 }
 
@@ -103,6 +98,7 @@ function scheduleBulkScan() {
 }
 
 function performPostRequest(doRemove) {
+  $('#loader').show();
   removed = doRemove;
   performPostRequestCommon($('#bulkIdResult'), function () {
     location.reload();
@@ -113,6 +109,7 @@ function markDecisions(decisionToBeApplied, isRemoval) {
   if (isRemoval == true) {
     var pleaseConfirm = confirm("You are about to delete recent decisions. Please confirm!");
     if (pleaseConfirm == false) {
+      $('#loader').hide();
       return false;
     }
   }

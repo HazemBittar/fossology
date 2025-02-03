@@ -1,20 +1,9 @@
 <?php
-/***********************************************************
- * Copyright (C) 2015 Siemens AG
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ***********************************************************/
+/*
+ SPDX-FileCopyrightText: © 2015 Siemens AG
+
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 namespace Fossology\Lib\Dao;
 
@@ -51,6 +40,25 @@ class JobDao
               OR gm.group_fk = $3)");
 
     $res = $this->dbManager->execute($stmt, array($uploadId, $userId, $groupId));
+    while ($row = $this->dbManager->fetchArray($res)) {
+      $result[$row['jq_pk']] = $row['end_bits'];
+    }
+    $this->dbManager->freeResult($res);
+
+    return $result;
+  }
+
+  public function getChlidJobStatus($jobId)
+  {
+    $result = array();
+    $stmt = __METHOD__;
+    $this->dbManager->prepare($stmt,
+      "SELECT jobqueue.jq_pk as jq_pk,
+              jobqueue.jq_end_bits as end_bits
+      FROM jobqueue
+      WHERE jq_job_fk = $1");
+
+    $res = $this->dbManager->execute($stmt, array($jobId));
     while ($row = $this->dbManager->fetchArray($res)) {
       $result[$row['jq_pk']] = $row['end_bits'];
     }

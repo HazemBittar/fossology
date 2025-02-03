@@ -1,21 +1,10 @@
 <?php
-/***********************************************************
- Copyright (C) 2010-2012 Hewlett-Packard Development Company, L.P.
- Copyright (C) 2013-2016, 2018 Siemens AG
+/*
+ SPDX-FileCopyrightText: © 2010-2012 Hewlett-Packard Development Company, L.P.
+ SPDX-FileCopyrightText: © 2013-2016, 2018,2022, Siemens AG
 
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- version 2 as published by the Free Software Foundation.
-
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License along
- with this program; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-***********************************************************/
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 use Fossology\Lib\Auth\Auth;
 use Fossology\Lib\Dao\UploadDao;
@@ -47,7 +36,7 @@ class copyright_list extends FO_Plugin
     $this->Name = "copyright-list";
     $this->Title = TITLE_COPYRIGHT_LIST;
     $this->Version = "1.0";
-    $this->Dependency = array("copyright-hist", "ecc-hist");
+    $this->Dependency = array("copyright-hist", "ecc-hist", "ipra-hist");
     $this->DBaccess = PLUGIN_DB_READ;
     $this->LoginFlag = 0;
     $this->NoMenu = 0;
@@ -86,7 +75,7 @@ class copyright_list extends FO_Plugin
   /**
    * @brief Get statement rows for a specified set
    * @param int $Uploadtree_pk Uploadtree id
-   * @param int $Agent_pk Agent id
+   * @param string $Agent_pk Agent id
    * @param int $upload_pk Upload id
    * @param string $hash Content hash
    * @param string $type Content type
@@ -137,11 +126,11 @@ type, uploadtree_pk, ufile_name, cp.pfile_fk AS PF
                 AND ut.lft BETWEEN $2 AND $3
               LEFT JOIN $eventTable AS ce ON ce.$eventFk = cp.$tablePk
                 AND ce.upload_fk = ut.upload_fk AND ce.uploadtree_fk = ut.uploadtree_pk
-              WHERE agent_fk=$4 AND (cp.hash=$5 OR ce.hash=$5) AND type=$6
+              WHERE agent_fk = ANY($4::int[]) AND (cp.hash=$5 OR ce.hash=$5) AND type=$6
                 $active_filter
               ORDER BY uploadtree_pk";
       $params = [
-        $upload_pk, $lft, $rgt, $Agent_pk, $hash, $type
+        $upload_pk, $lft, $rgt, "{". $Agent_pk . "}", $hash, $type
       ];
     }
     $statement = __METHOD__.$tableName;
@@ -171,8 +160,7 @@ type, uploadtree_pk, ufile_name, cp.pfile_fk AS PF
     $ExclArray = explode(":", $excl);
 
     /* filter will need to know the rf_pk of "No_license_found" or "Void" */
-    if (!empty($filter) && ($filter == "nolic"))
-    {
+    if (!empty($filter) && ($filter == "nolic")) {
       $NoLicStr = "No_license_found";
       $VoidLicStr = "Void";
       $rf_clause = "";
@@ -182,10 +170,10 @@ type, uploadtree_pk, ufile_name, cp.pfile_fk AS PF
       $this->dbManager->prepare($statement, $sql);
       $result = $this->dbManager->execute($statement,array("$NoLicStr", "$VoidLicStr"));
       $rf_rows = $this->dbManager->fetchAll($result);
-      if(!empty($rf_rows)){
-        foreach($rf_rows as $row)
-        {
-          if (!empty($rf_clause)) { $rf_clause .= " or ";
+      if (!empty($rf_rows)) {
+        foreach ($rf_rows as $row) {
+          if (!empty($rf_clause)) {
+            $rf_clause .= " or ";
           }
           $rf_clause .= " rf_fk=$row[rf_pk]";
         }
@@ -193,35 +181,30 @@ type, uploadtree_pk, ufile_name, cp.pfile_fk AS PF
       $this->dbManager->freeResult($result);
     }
 
-    for($RowIdx = 0; $RowIdx < $NumRows; $RowIdx++)
-    {
+    for ($RowIdx = 0; $RowIdx < $NumRows; $RowIdx++) {
       $row = $rows[$RowIdx];
       /* remove non matching entries */
       if ($row['hash'] != $hash) {
         unset($rows[$RowIdx]);
       }
       /* remove excluded files */
-      if ($excl)
-      {
+      if ($excl) {
         $FileExt = GetFileExt($rows[$RowIdx]['ufile_name']);
-        if (in_array($FileExt, $ExclArray))
-        {
+        if (in_array($FileExt, $ExclArray)) {
           unset($rows[$RowIdx]);
           continue;
         }
       }
 
       /* apply filters */
-      if (($filter == "nolic") && ($rf_clause))
-      {
+      if (($filter == "nolic") && ($rf_clause)) {
         /* discard file unless it has no license */
         $sql = "select rf_fk from license_file where ($rf_clause) and pfile_fk=$1";
         $statement = __METHOD__."CheckForNoLicenseFound";
         $this->dbManager->prepare($statement, $sql);
         $result = $this->dbManager->execute($statement,array("{$row['pf']}"));
         $FoundRows = $this->dbManager->fetchAll($result);
-        if (empty($FoundRows))
-        {
+        if (empty($FoundRows)) {
           unset($rows[$RowIdx]);
           continue;
         }
@@ -238,10 +221,8 @@ type, uploadtree_pk, ufile_name, cp.pfile_fk AS PF
     /* remove duplicate files */
     $NumRows = count($rows2);
     $prev = 0;
-    for($RowIdx = 0; $RowIdx < $NumRows; $RowIdx++)
-    {
-      if ($RowIdx > 0)
-      {
+    for ($RowIdx = 0; $RowIdx < $NumRows; $RowIdx++) {
+      if ($RowIdx > 0) {
         /* Since rows are ordered by uploadtree_pk,
          * remove duplicate uploadtree_pk's.  This can happen if there
          * are multiple same copyrights in one file.
@@ -287,22 +268,20 @@ type, uploadtree_pk, ufile_name, cp.pfile_fk AS PF
     $Max = 50;
 
     /*  Input parameters */
-    $agent_pk = GetParm("agent",PARM_INTEGER);
+    $agent_pk = GetParm("agent",PARM_STRING);
     $uploadtree_pk = GetParm("item",PARM_INTEGER);
     $hash = GetParm("hash",PARM_RAW);
     $type = GetParm("type",PARM_RAW);
     $excl = GetParm("excl",PARM_RAW);
     $filter = GetParm("filter",PARM_RAW);
-    if (empty($uploadtree_pk) || empty($hash) || empty($type) || empty($agent_pk))
-    {
+    if (empty($uploadtree_pk) || empty($hash) || empty($type) || empty($agent_pk)) {
       $this->vars['pageContent'] = $this->Name . _(" is missing required parameters");
       return;
     }
 
     /* Check item1 and item2 upload permissions */
     $Row = $this->uploadDao->getUploadEntry($uploadtree_pk);
-    if (!$this->uploadDao->isAccessible($Row['upload_fk'], Auth::getGroupId()))
-    {
+    if (!$this->uploadDao->isAccessible($Row['upload_fk'], Auth::getGroupId())) {
       $this->vars['pageContent'] = "<h2>" . _("Permission Denied") . "</h2>";
       return;
     }
@@ -327,8 +306,7 @@ type, uploadtree_pk, ufile_name, cp.pfile_fk AS PF
     $OutBuf .= menu_to_1html(menu_find($this->Name, $MenuDepth),0);
 
     $RowCount = count($rows);
-    if ($RowCount)
-    {
+    if ($RowCount) {
       $TypeStr = "";
       $Content = htmlentities($rows[0]['content']);
       $Offset = ($Page < 0) ? 0 : $Page*$Max;
@@ -340,26 +318,23 @@ type, uploadtree_pk, ufile_name, cp.pfile_fk AS PF
       $text5 = _("url");
       switch ($type)
       {
+        case "scancode_statement":
         case "statement":
           $TypeStr = "$text3";
           break;
-        case "scancode_statement":
-          $TypeStr = "$text3";
-          break;
+        case "scancode_email":
         case "email":
           $TypeStr = "$text4";
           break;
+        case "scancode_url":
         case "url":
           $TypeStr = "$text5";
           break;
-        case "scancode_email":
-            $TypeStr = "$text4";
-            break;
-        case "scancode_url":
-            $TypeStr = "$text5";
-            break;
+        case "ipra":
+          $TypeStr = _("Patent Relavent Analysis");
+          break;
         case "ecc":
-          $TypeStr = _("export restriction");
+          $TypeStr = _("Export Restriction");
           break;
         case "keyword":
           $TypeStr = _("Keyword Analysis");
@@ -372,17 +347,15 @@ type, uploadtree_pk, ufile_name, cp.pfile_fk AS PF
       $OutBuf .= ": <b>$Content</b>";
 
       $text = _("Display excludes files with these extensions");
-      if (!empty($excl)) { $OutBuf .= "<br>$text: $excl";
+      if (!empty($excl)) {
+        $OutBuf .= "<br>$text: $excl";
       }
 
       /* Get the page menu */
-      if (($RowCount >= $Max) && ($Page >= 0))
-      {
+      if (($RowCount >= $Max) && ($Page >= 0)) {
         $PagingMenu = "<P />\n" . MenuPage($Page, intval($RowCount / $Max)) . "<P />\n";
         $OutBuf .= $PagingMenu;
-      }
-      else
-      {
+      } else {
         $PagingMenu = "";
       }
 
@@ -395,8 +368,7 @@ type, uploadtree_pk, ufile_name, cp.pfile_fk AS PF
 
       // display rows
       $RowNum = 0;
-      foreach($rows as $row)
-      {
+      foreach ($rows as $row) {
         ++$RowNum;
         if ($RowNum < $Offset) {
           continue;
@@ -417,23 +389,19 @@ type, uploadtree_pk, ufile_name, cp.pfile_fk AS PF
         $Header = "<a href=$URL>$text.</a>";
 
         $ok = true;
-        if ($excl)
-        {
+        if ($excl) {
           $ExclArray = explode(":", $excl);
           if (in_array($FileExt, $ExclArray)) {
             $ok = false;
           }
         }
 
-        if ($ok)
-        {
+        if ($ok) {
           $OutBuf .= Dir2Browse($modBack, $row['uploadtree_pk'], $LinkLast,
             $ShowBox, $ShowMicro, $RowNum, $Header, '', $uploadtree_tablename);
         }
       }
-    }
-    else
-    {
+    } else {
       $OutBuf .= _("No files found");
     }
 
@@ -468,6 +436,11 @@ type, uploadtree_pk, ufile_name, cp.pfile_fk AS PF
   {
 
     switch ($type) {
+      case "ipra" :
+        $tableName = "ipra";
+        $modBack = "ipra-hist";
+        $viewName = "ipra-view";
+        break;
       case "ecc" :
         $tableName = "ecc";
         $modBack = "ecc-hist";

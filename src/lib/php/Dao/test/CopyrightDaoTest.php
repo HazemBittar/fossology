@@ -1,20 +1,9 @@
 <?php
 /*
-Copyright (C) 2014-2018, Siemens AG
-Author: Daniele Fognini, Steffen Weber
+ SPDX-FileCopyrightText: © 2014-2018 Siemens AG
+ Author: Daniele Fognini, Steffen Weber
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-version 2 as published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ SPDX-License-Identifier: GPL-2.0-only
 */
 
 namespace Fossology\Lib\Dao;
@@ -297,11 +286,18 @@ class CopyrightDaoTest extends \PHPUnit\Framework\TestCase
     $agentDao = M::mock('Fossology\Lib\Dao\AgentDao');
     $agentDao->shouldReceive('arsTableExists')->withArgs(['copyright'])
       ->andReturn(true);
+    $agentDao->shouldReceive('arsTableExists')->withArgs(['reso'])
+      ->andReturn(true);
     $agentDao->shouldReceive('getSuccessfulAgentEntries')
       ->withArgs(['copyright', 1])->andReturn([['agent_id' => '8',
       'agent_rev' => 'trunk.271e3e', 'agent_name' => 'copyright']]);
+    $agentDao->shouldReceive('getSuccessfulAgentEntries')
+      ->withArgs(['reso', 1])->andReturn([['agent_id' => '8',
+      'agent_rev' => 'trunk.271e3e', 'agent_name' => 'reso']]);
     $agentDao->shouldReceive('getCurrentAgentRef')->withArgs(['copyright'])
       ->andReturn(new AgentRef(8, 'copyright', 'trunk.271e3e'));
+    $agentDao->shouldReceive('getCurrentAgentRef')->withArgs(['reso'])
+      ->andReturn(new AgentRef(8, 'reso', 'trunk.271e3e'));
 
     $container->shouldReceive('get')->withArgs(['dao.agent'])
       ->andReturn($agentDao);
@@ -328,11 +324,18 @@ class CopyrightDaoTest extends \PHPUnit\Framework\TestCase
     $agentDao = M::mock('Fossology\Lib\Dao\AgentDao');
     $agentDao->shouldReceive('arsTableExists')->withArgs(['copyright'])
       ->andReturn(true);
+    $agentDao->shouldReceive('arsTableExists')->withArgs(['reso'])
+      ->andReturn(true);
     $agentDao->shouldReceive('getSuccessfulAgentEntries')
       ->withArgs(['copyright', 1])->andReturn([['agent_id' => '8',
       'agent_rev' => 'trunk.271e3e', 'agent_name' => 'copyright']]);
+    $agentDao->shouldReceive('getSuccessfulAgentEntries')
+      ->withArgs(['reso', 1])->andReturn([['agent_id' => '8',
+      'agent_rev' => 'trunk.271e3e', 'agent_name' => 'reso']]);
     $agentDao->shouldReceive('getCurrentAgentRef')->withArgs(['copyright'])
       ->andReturn(new AgentRef(8, 'copyright', 'trunk.271e3e'));
+    $agentDao->shouldReceive('getCurrentAgentRef')->withArgs(['reso'])
+      ->andReturn(new AgentRef(8, 'reso', 'trunk.271e3e'));
 
     $container->shouldReceive('get')->withArgs(['dao.agent'])
       ->andReturn($agentDao);

@@ -1,21 +1,9 @@
-/***************************************************************
- Copyright (C) 2013 Hewlett-Packard Development Company, L.P.
- Copyright (C) 2014-2015,2019 Siemens AG
+/*
+ SPDX-FileCopyrightText: © 2013 Hewlett-Packard Development Company, L.P.
+ SPDX-FileCopyrightText: © 2014-2015, 2019 Siemens AG
 
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- version 2 as published by the Free Software Foundation.
-
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License along
- with this program; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-
- ***************************************************************/
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 /**
  * \file
  * \brief Functions to process a single file and process an upload
@@ -680,6 +668,7 @@ FUNCTION void removeOldLogFiles(const char* olderThan)
   long StartTime, EndTime;
   char ch;
   FILE* tempFile;
+  int retval;                ///< Return value of find
 
   StartTime = (long)time(0);
   if (sscanf(olderThan, "%d-%d-%d", &ti.tm_year, &ti.tm_mon, &ti.tm_mday) != 3)
@@ -697,7 +686,13 @@ FUNCTION void removeOldLogFiles(const char* olderThan)
 
   snprintf(cmd, myBUFSIZ, "/usr/bin/find %s/logs -type f -mtime +%ld -fprint %s",
            fo_sysconfig("FOSSOLOGY", "path"), ellapsed_time, file_template);
-  system(cmd); // Find and print files in temp location
+  retval = system(cmd); // Find and print files in temp location
+  if (!WIFEXITED(retval))
+  { // find fail
+    LOG_FATAL("Unable run find for logs files.");
+    unlink(file_template);
+    exitNow(-148);
+  }
   tempFile = fdopen(fd, "r");
   if (tempFile == NULL)
   {
@@ -714,7 +709,14 @@ FUNCTION void removeOldLogFiles(const char* olderThan)
   }
 
   snprintf(cmd, myBUFSIZ, "/usr/bin/xargs --arg-file=%s /bin/rm -f", file_template);
-  system(cmd);
+  retval = system(cmd);
+  if (!WIFEXITED(retval))
+  { // xargs fail
+    LOG_FATAL("Unable delete log files with xargs.");
+    fclose(tempFile);
+    unlink(file_template);
+    exitNow(-148);
+  }
   fclose(tempFile);
   unlink(file_template);
 

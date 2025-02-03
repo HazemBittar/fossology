@@ -1,24 +1,15 @@
 <?php
 /*
- Copyright (C) 2017, Siemens AG
+ SPDX-FileCopyrightText: © 2017 Siemens AG
 
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- version 2 as published by the Free Software Foundation.
-
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License along
- with this program; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- */
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 use Fossology\Lib\Data\Package\ComponentType;
 use PhpOffice\PhpWord\Element\Section;
-use \PhpOffice\PhpWord\Style;
+use PhpOffice\PhpWord\Style;
+use PhpOffice\PhpWord\SimpleType\JcTable;
+use PhpOffice\PhpWord\Style\Table;
 
 /**
  * @class ReportSummary
@@ -37,7 +28,9 @@ class ReportSummary
   private $tablestyle = array("borderSize" => 2,
                               "name" => "Arial",
                               "borderColor" => "000000",
-                              "cellSpacing" => 5
+                              "cellSpacing" => 5,
+                              "alignment"   => JcTable::START,
+                              "layout"      => Table::LAYOUT_FIXED
                              );
 
   /** @var array $subHeadingStyle
@@ -84,6 +77,7 @@ class ReportSummary
    * @param int $timestamp
    * @param string $groupName
    * @param string $packageUri
+   * @param $assignedToUserName
    */
   function summaryTable(Section $section, $uploadId, $userName, $mainLicenses, $licenses, $histLicenses, $otherStatement, $timestamp, $groupName, $packageUri, $assignedToUserName)
   {

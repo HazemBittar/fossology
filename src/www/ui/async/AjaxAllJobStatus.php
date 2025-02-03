@@ -1,21 +1,10 @@
 <?php
-/***********************************************************
- * Copyright (C) 2020 Siemens AG
- * Author: Gaurav Mishra <mishra.gaurav@siemens.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ***********************************************************/
+/*
+ SPDX-FileCopyrightText: © 2020 Siemens AG
+ Author: Gaurav Mishra <mishra.gaurav@siemens.com>
+
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 namespace Fossology\UI\Ajax;
 
 use Fossology\Lib\Auth\Auth;
@@ -61,7 +50,7 @@ class AjaxAllJobStatus extends DefaultPlugin
    * @param Request $request
    * @return Response
    */
-  protected function handle(Request $request)
+  public function handle(Request $request)
   {
     $results = $this->showJobDao->getJobsForAll();
     $uniqueTypes = array_unique(array_column($results, 'job'));
@@ -103,11 +92,12 @@ class AjaxAllJobStatus extends DefaultPlugin
     $output = "";
     $error_msg = "";
     $schedStatus = "Running";
+    $systemLoad = get_system_load_average();
     if (! fo_communicate_with_scheduler("status", $output, $error_msg)
       && strstr($error_msg, "Connection refused") !== false) {
       $schedStatus = "Stopped";
     }
-    return new JsonResponse(["data" => $returnData, "scheduler" => $schedStatus]);
+    return new JsonResponse(["data" => $returnData, "scheduler" => $schedStatus, "systemLoad" => $systemLoad]);
   }
 }
 

@@ -1,20 +1,9 @@
-/* **************************************************************
- Copyright (C) 2010, 2011, 2012 Hewlett-Packard Development Company, L.P.
- Copyright (C) 2015 Siemens AG
+/*
+ SPDX-FileCopyrightText: © 2010, 2011, 2012 Hewlett-Packard Development Company, L.P.
+ SPDX-FileCopyrightText: © 2015 Siemens AG
 
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- version 2 as published by the Free Software Foundation.
-
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License along
- with this program; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ************************************************************** */
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 /**
  * \file
@@ -605,7 +594,34 @@ static void shell_parse(char* confdir, int user_id, int group_id, char* input, c
   (*argv)[idx++] = g_strdup_printf("--groupID=%d", group_id);
   (*argv)[idx++] = "--scheduler_start";
   if (jq_cmd_args)
-    (*argv)[idx++] = jq_cmd_args;
+  {
+    const char *start = jq_cmd_args;
+    const char *current = jq_cmd_args;
+    gboolean in_quotes = FALSE;
+
+    while (*current != '\0')
+    {
+      if (*current == '\'' || *current == '"')
+        in_quotes = !in_quotes;
+      else if (*current == ' ' && !in_quotes)
+      {
+        if (current > start)
+        {
+          int len = current - start;
+          char *arg = g_strndup(start, len);
+          (*argv)[idx++] = arg;
+        }
+        start = current + 1;
+      }
+      current++;
+    }
+
+    if (current > start)
+    {
+      char *arg = g_strndup(start, current - start);
+      (*argv)[idx++] = arg;
+    }
+  }
   (*argc) = idx;
 }
 
