@@ -1,21 +1,10 @@
 <?php
 /*
- * Author: Daniele Fognini, Shaheem Azmal M MD
- * Copyright (C) 2016-2018, Siemens AG
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- */
+ Author: Daniele Fognini, Shaheem Azmal M MD
+ SPDX-FileCopyrightText: © 2016-2018 Siemens AG
+
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 /**
  * @dir readmeoss
  * @brief Readme_OSS agent
@@ -51,6 +40,7 @@ use Fossology\Lib\Dao\UploadDao;
 use Fossology\Lib\Report\LicenseClearedGetter;
 use Fossology\Lib\Report\XpClearedGetter;
 use Fossology\Lib\Report\LicenseMainGetter;
+use Fossology\Lib\Report\ReportUtils;
 
 include_once(__DIR__ . "/version.php");
 
@@ -78,6 +68,11 @@ class ReadmeOssAgent extends Agent
    */
   private $licenseMainGetter;
 
+  /** @var ReportUtils $reportutils
+   * ReportUtils object
+   */
+  private $reportutils;
+
   /** @var UploadDao $uploadDao
    * UploadDao object
    */
@@ -93,6 +88,7 @@ class ReadmeOssAgent extends Agent
     $this->cpClearedGetter = new XpClearedGetter("copyright", "statement");
     $this->licenseClearedGetter = new LicenseClearedGetter();
     $this->licenseMainGetter = new LicenseMainGetter();
+    $this->reportutils = new ReportUtils();
 
     parent::__construct(README_AGENT_NAME, AGENT_VERSION, AGENT_REV);
 
@@ -158,7 +154,7 @@ class ReadmeOssAgent extends Agent
     $packageName = $this->uploadDao->getUpload($uploadId)->getFilename();
 
     $fileBase = $SysConf['FOSSOLOGY']['path']."/report/";
-    $fileName = $fileBase. "ReadMe_OSS_".$packageName.'_'.time().".txt" ;
+    $fileName = $fileBase. "ReadMe_OSS_".$packageName.".txt" ;
 
     foreach ($this->additionalUploadIds as $addUploadId) {
       $packageName .= ', ' . $this->uploadDao->getUpload($addUploadId)->getFilename();
@@ -183,7 +179,7 @@ class ReadmeOssAgent extends Agent
    */
   private function updateReportTable($uploadId, $jobId, $filename)
   {
-    $this->dbManager->insertTableRow('reportgen', array('upload_fk'=>$uploadId, 'job_fk'=>$jobId, 'filepath'=>$filename), __METHOD__);
+    $this->reportutils->updateOrInsertReportgenEntry($uploadId, $jobId, $filename);
   }
 
   /**
@@ -194,7 +190,7 @@ class ReadmeOssAgent extends Agent
    * @param string $break         Line break string
    * @return string Formated report
    */
-  private function createReadMeOSSFormat($addSeparator, $dataForReadME, $extract='text', $break)
+  private function createReadMeOSSFormat($addSeparator, $dataForReadME, $extract, $break)
   {
     $outData = "";
     foreach ($dataForReadME as $statements) {

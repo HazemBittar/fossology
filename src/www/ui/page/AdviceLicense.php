@@ -1,26 +1,17 @@
 <?php
-/***********************************************************
- * Copyright (C) 2014-2015 Siemens AG
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ***********************************************************/
+/*
+ SPDX-FileCopyrightText: © 2014-2015 Siemens AG
+
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 namespace Fossology\UI\Page;
 
+use Composer\Spdx\SpdxLicenses;
 use Fossology\Lib\Auth\Auth;
 use Fossology\Lib\Dao\LicenseDao;
 use Fossology\Lib\Dao\UserDao;
+use Fossology\Lib\Data\LicenseRef;
 use Fossology\Lib\Db\DbManager;
 use Fossology\Lib\Plugin\DefaultPlugin;
 use Symfony\Component\HttpFoundation\Request;
@@ -71,7 +62,8 @@ class AdviceLicense extends DefaultPlugin
         $vars = $this->saveInput($request, $vars, $userId);
         $vars['message'] = 'Successfully updated.';
       } catch (\Exception $e) {
-        $vars = array('rf_shortname' => $request->get('shortname'),
+        $vars = array('rf_spdx_id' => $request->get('spdx_id'),
+                      'rf_shortname' => $request->get('shortname'),
                       'rf_fullname' => $request->get('fullname'),
                       'rf_text' => $request->get('rf_text'),
                       'rf_url' => $request->get('url'),
@@ -88,18 +80,20 @@ class AdviceLicense extends DefaultPlugin
 
   private function getArrayArrayData($groupId,$canEdit)
   {
-    $sql = "SELECT rf_pk,rf_shortname,rf_fullname,rf_text,rf_url,rf_notes,marydone FROM license_candidate WHERE group_fk=$1";
+    $sql = "SELECT rf_pk,rf_spdx_id,rf_shortname,rf_fullname,rf_text,rf_url,rf_notes,marydone,user_name FROM license_candidate lc INNER JOIN users ON lc.rf_user_fk_created=users.user_pk WHERE lc.group_fk=$1";
     /** @var DbManager */
     $dbManager = $this->getObject('db.manager');
     $dbManager->prepare($stmt = __METHOD__, $sql);
     $res = $dbManager->execute($stmt, array($groupId));
     $aaData = array();
     while ($row = $dbManager->fetchArray($res)) {
-      $aData = array(htmlentities($row['rf_shortname']),
-          htmlentities($row['rf_fullname']),
-          '<div style="overflow-y:scroll;max-height:150px;margin:0;">' . nl2br(htmlentities($row['rf_text'])) . '</div>',
-          htmlentities($row['rf_url']),
-          $this->bool2checkbox($dbManager->booleanFromDb($row['marydone'])));
+      $aData = array(htmlentities($row['rf_spdx_id']),
+        htmlentities($row['rf_shortname']), htmlentities($row['rf_fullname']),
+        '<div style="overflow-y:scroll;max-height:150px;margin:0;">' . nl2br(htmlentities($row['rf_text'])) . '</div>',
+        htmlentities($row['rf_url']),
+        htmlentities($row['user_name']),
+        $this->bool2checkbox($dbManager->booleanFromDb($row['marydone']))
+      );
       if ($canEdit) {
         $link = Traceback_uri() . '?mod=' . Traceback_parm() . '&rf=' . $row['rf_pk'];
         $edit = '<a href="' . $link . '"><img border="0" src="images/button_edit.png"></a>';
@@ -117,7 +111,10 @@ class AdviceLicense extends DefaultPlugin
     if ($licId == -1) {
       return array('rf_pk' => -1, 'rf_shortname' => '');
     }
-    $sql = "SELECT rf_pk,rf_shortname,rf_fullname,rf_text,rf_url,rf_notes,rf_lastmodified,rf_user_fk_modified,rf_user_fk_created,rf_creationdate,marydone,rf_risk FROM license_candidate WHERE group_fk=$1 AND rf_pk=$2";
+    $sql = "SELECT rf_pk,rf_spdx_id,rf_shortname,rf_fullname,rf_text,rf_url," .
+      "rf_notes,rf_lastmodified,rf_user_fk_modified,rf_user_fk_created," .
+      "rf_creationdate,marydone,rf_risk FROM license_candidate " .
+      "WHERE group_fk=$1 AND rf_pk=$2";
     /* @var $dbManager DbManager */
     $dbManager = $this->getObject('db.manager');
     $row = $dbManager->getSingleRow($sql, array($groupId, $licId), __METHOD__);
@@ -144,11 +141,15 @@ class AdviceLicense extends DefaultPlugin
   /**
    * @param Request $request
    * @param array $oldRow
-   * @throws \Exception
+   * @param $userId
    * @return array $newRow
+   * @throws \Exception
    */
   private function saveInput(Request $request, $oldRow, $userId)
   {
+    $spdxLicenses = new SpdxLicenses();
+
+    $spdxId = $request->get('spdx_id');
     $shortname = $request->get('shortname');
     $fullname = $request->get('fullname');
     $rfText = $request->get('rf_text');
@@ -177,8 +178,21 @@ class AdviceLicense extends DefaultPlugin
       $oldRow['rf_pk'] = $licenseDao->insertUploadLicense($shortname, $rfText, Auth::getGroupId(), $userId);
     }
 
+    if (! empty($spdxId) &&
+      strstr(strtolower($spdxId), strtolower(LicenseRef::SPDXREF_PREFIX)) === false) {
+      if (! $spdxLicenses->validate($spdxId)) {
+        $spdxId = LicenseRef::convertToSpdxId($spdxId, null);
+      }
+    } elseif (empty($spdxId)) {
+      $spdxId = null;
+    }
+    if (! empty($spdxId)) {
+      $spdxId = LicenseRef::replaceSpaces($spdxId);
+    }
+
     $licenseDao->updateCandidate($oldRow['rf_pk'], $shortname, $fullname,
-      $rfText, $url, $note, $lastmodified, $userIdmodified, !empty($marydone), $riskLvl);
+      $rfText, $url, $note, $lastmodified, $userIdmodified, !empty($marydone),
+      $riskLvl, $spdxId);
     return $this->getDataRow(Auth::getGroupId(), $oldRow['rf_pk']);
   }
 }

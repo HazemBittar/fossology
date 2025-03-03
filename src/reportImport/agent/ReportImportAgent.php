@@ -1,37 +1,28 @@
 <?php
 /*
- * Copyright (C) 2015-2017, Siemens AG
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- */
+ SPDX-FileCopyrightText: © 2015-2017,2024 Siemens AG
+
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 namespace Fossology\ReportImport;
 
 use Fossology\Lib\Agent\Agent;
 use Fossology\Lib\Dao\ClearingDao;
+use Fossology\Lib\Dao\CopyrightDao;
 use Fossology\Lib\Dao\LicenseDao;
-use Fossology\Lib\Dao\UserDao;
 use Fossology\Lib\Dao\UploadDao;
-use Fossology\Lib\Dao\UploadPermissionDao;
+use Fossology\Lib\Dao\UserDao;
 use Fossology\Lib\Data\Tree\ItemTreeBounds;
 use Fossology\Lib\Db\DbManager;
+use Fossology\Lib\Exception;
+use Fossology\Lib\Util\StringOperation;
+
 require_once 'SpdxTwoImportSource.php';
+require_once 'SpdxThreeImportSource.php';
 require_once 'XmlImportSource.php';
 require_once 'ReportImportSink.php';
 require_once 'ReportImportHelper.php';
 require_once 'ReportImportConfiguration.php';
-
-use EasyRdf\Graph;
 
 require_once 'version.php';
 require_once 'services.php';
@@ -45,8 +36,6 @@ class ReportImportAgent extends Agent
   private $uploadDao;
   /** @var UserDao */
   private $userDao;
-  /** @var UploadPermissionDao */
-  private $permissionDao;
   /** @var DbManager */
   protected $dbManager;
   /** @var LicenseDao */
@@ -62,7 +51,6 @@ class ReportImportAgent extends Agent
   {
     parent::__construct(AGENT_REPORTIMPORT_NAME, AGENT_REPORTIMPORT_VERSION, AGENT_REPORTIMPORT_REV);
     $this->uploadDao = $this->container->get('dao.upload');
-    $this->permissionDao = $this->container->get('dao.upload.permission');
     $this->dbManager = $this->container->get('db.manager');
     $this->userDao = $this->container->get('dao.user');
     $this->licenseDao = $this->container->get('dao.license');
@@ -74,6 +62,9 @@ class ReportImportAgent extends Agent
     $this->setAgent_PK();
   }
 
+  /**
+   * @throws \Exception In case agent_pk could not be identified
+   */
   private function setAgent_PK()
   {
     // should be already set in $this->agentId?
@@ -82,8 +73,7 @@ class ReportImportAgent extends Agent
       array(AGENT_REPORTIMPORT_NAME), __METHOD__."select"
     );
 
-    if ($row === false)
-    {
+    if ($row === false) {
       throw new \Exception("agent_pk could not be determined");
     }
     $this->agent_pk = intval($row['agent_pk']);
@@ -125,18 +115,14 @@ class ReportImportAgent extends Agent
     $this->heartbeat(0);
 
     self::preWorkOnArgsFlp($this->args, self::REPORT_KEY);
-    if (!$this->permissionDao->isEditable($uploadId, $this->groupId)) {
-      return false;
-    }
 
     $reportPre = array_key_exists(self::REPORT_KEY,$this->args) ? $this->args[self::REPORT_KEY] : "";
     global $SysConf;
-    $fileBase = $SysConf['FOSSOLOGY']['path']."/ReportImport/";
-    $report = $fileBase.$reportPre;
-    if(empty($reportPre) || !is_readable($report))
-    {
+    $fileBase = $SysConf['FOSSOLOGY']['path'] . "/ReportImport/";
+    $report = $fileBase . $reportPre;
+    if(empty($reportPre) || !is_readable($report)) {
       echo "No report was uploaded\n";
-      echo "Maybe the permissions on ".htmlspecialchars($fileBase)." are not sufficient\n";
+      echo "Maybe the permissions on " . htmlspecialchars($fileBase) . " are not sufficient\n";
       return false;
     }
 
@@ -168,7 +154,7 @@ class ReportImportAgent extends Agent
   {
     $pfilesByFilename = self::getEntriesForFilename($fileName, $pfilePerFileName);
 
-    if (($pfilesByFilename !== null || sizeof($pfilesByFilename) === 0))
+    if (($pfilesByFilename !== null && sizeof($pfilesByFilename) > 0))
     {
       if ( $hashMap !== null && sizeof($hashMap) > 0 )
       {
@@ -207,12 +193,15 @@ class ReportImportAgent extends Agent
     {
       return array($pfilesPerFileName[$filename]);
     }
-    $length = strlen($filename);
+    # Allow matching "./README.MD" with "pack.tar.gz/pack.tar/README.MD" by
+    # matching "/README.MD" with "/README.MD".
+    $length = strlen($filename) - 1;
+    $fileWithoutDot = substr($filename, -$length);
     if($length > 3)
     {
       foreach(array_keys($pfilesPerFileName) as $key)
       {
-        if(substr($key, -$length) === $filename)
+        if(substr($key, -$length) === $fileWithoutDot)
         {
           return array($pfilesPerFileName[$key]);
         }
@@ -238,26 +227,38 @@ class ReportImportAgent extends Agent
 
   /**
    * @param string $reportFilename
-   * @return SpdxTwoImportSource
+   * @return SpdxTwoImportSource|SpdxThreeImportSource|XmlImportSource
    * @throws \Exception
    */
   private function getImportSource($reportFilename)
   {
 
-    if(substr($reportFilename, -4) === ".xml")
-    {
-      $importSource = new XmlImportSource($reportFilename);
-      if($importSource->parse())
-      {
-        return $importSource;
+    if(StringOperation::stringEndsWith($reportFilename, ".rdf") ||
+      StringOperation::stringEndsWith($reportFilename, ".rdf.xml") ||
+      StringOperation::stringEndsWith($reportFilename, ".ttl")){
+    /**
+     * @param string $version
+     * @return specVersion for RDF report parsing
+     */
+      $parse = new SpdxTwoImportSource($reportFilename);
+      $version = $parse->getVersion();
+      if($version == "2.2" || $version == "2.3"){
+        $importSource = new SpdxTwoImportSource($reportFilename);
+        if($importSource->parse()) {
+          return $importSource;
+        }
+      }
+      else{
+        $importSource = new SpdxThreeImportSource($reportFilename);
+        if($importSource->parse()) {
+          return $importSource;
+        }
       }
     }
 
-    if(substr($reportFilename, -4) === ".rdf")
-    {
-      $importSource = new SpdxTwoImportSource($reportFilename);
-      if($importSource->parse())
-      {
+    if (StringOperation::stringEndsWith($reportFilename, ".xml")) {
+      $importSource = new XmlImportSource($reportFilename);
+      if($importSource->parse()) {
         return $importSource;
       }
     }
@@ -266,21 +267,25 @@ class ReportImportAgent extends Agent
     throw new \Exception("unsupported report type with filename: $reportFilename");
   }
 
+  /**
+   * @throws Exception If parent item bounds could not be determined.
+   */
   public function walkAllFiles($reportFilename, $upload_pk, $configuration)
   {
-    /** @var ReportImportSource */
+    /** @var ImportSource $source */
     $source = $this->getImportSource($reportFilename);
-    if($source === NULL)
-    {
+    if ($source === NULL) {
       return;
     }
 
-    /** @var ReportImportSink */
-    $sink = new ReportImportSink($this->agent_pk, $this->userDao, $this->licenseDao, $this->clearingDao, $this->copyrightDao,
-                                 $this->dbManager, $this->groupId, $this->userId, $this->jobId, $configuration);
+    /** @var ReportImportSink $sink */
+    $sink = new ReportImportSink($this->agent_pk, $this->userDao,
+      $this->licenseDao, $this->clearingDao, $this->copyrightDao,
+      $this->dbManager, $this->groupId, $this->userId, $this->jobId,
+      $configuration);
 
     // Prepare data from DB
-    $itemTreeBounds = $this->getItemTreeBounds($upload_pk);
+    $itemTreeBounds = $this->uploadDao->getParentItemBounds($upload_pk);
     $pfilePerFileName = $this->uploadDao->getPFileDataPerFileName($itemTreeBounds);
     $pfilesPerHash = $this->uploadDao->getPFilesDataPerHashAlgo($itemTreeBounds, 'sha1');
 
@@ -296,8 +301,7 @@ class ReportImportAgent extends Agent
         $fileName, $pfilePerFileName,
         $hashMap, $pfilesPerHash, 'sha1');
 
-      if ($pfiles === null || sizeof($pfiles) === 0)
-      {
+      if ($pfiles === null || sizeof($pfiles) === 0) {
         print "WARN: no match for fileId=[".$fileId."] with filename=[".$fileName."]\n";
         continue;
       }

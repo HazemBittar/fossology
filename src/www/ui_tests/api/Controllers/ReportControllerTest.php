@@ -1,21 +1,10 @@
 <?php
-/***************************************************************
- * Copyright (C) 2020-2021 Siemens AG
- * Author: Gaurav Mishra <mishra.gaurav@siemens.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ***************************************************************/
+/*
+ SPDX-FileCopyrightText: © 2020-2021 Siemens AG
+ Author: Gaurav Mishra <mishra.gaurav@siemens.com>
+
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 /**
  * @file
  * @brief Tests for ReportController
@@ -23,21 +12,24 @@
 
 namespace Fossology\UI\Api\Test\Controllers;
 
-use Mockery as M;
-use Fossology\CliXml\CliXmlGeneratorUi;
 use Fossology\Lib\Dao\UploadDao;
 use Fossology\Lib\Data\Upload\Upload;
 use Fossology\Lib\Db\DbManager;
 use Fossology\UI\Api\Controllers\ReportController;
+use Fossology\UI\Api\Exceptions\HttpBadRequestException;
+use Fossology\UI\Api\Exceptions\HttpForbiddenException;
+use Fossology\UI\Api\Exceptions\HttpNotFoundException;
+use Fossology\UI\Api\Exceptions\HttpServiceUnavailableException;
 use Fossology\UI\Api\Helper\DbHelper;
+use Fossology\UI\Api\Helper\ResponseHelper;
 use Fossology\UI\Api\Helper\RestHelper;
 use Fossology\UI\Api\Models\Info;
 use Fossology\UI\Api\Models\InfoType;
-use Fossology\UI\Api\Helper\ResponseHelper;
-use Slim\Psr7\Request;
+use Mockery as M;
 use Slim\Psr7\Factory\StreamFactory;
-use Slim\Psr7\Uri;
 use Slim\Psr7\Headers;
+use Slim\Psr7\Request;
+use Slim\Psr7\Uri;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 
@@ -58,7 +50,8 @@ class ReportControllerTest extends \PHPUnit\Framework\TestCase
     'spdx2tv',
     'readmeoss',
     'unifiedreport',
-    'clixml'
+    'clixml',
+    'decisionexporter'
   );
 
   /**
@@ -86,7 +79,7 @@ class ReportControllerTest extends \PHPUnit\Framework\TestCase
   private $groupId;
 
   /**
-   * @var SpdxTwoGeneratorUi $spdxPlugin
+   * @var M\MockInterface $spdxPlugin
    * SPDX generator mock
    */
   private $spdxPlugin;
@@ -116,6 +109,12 @@ class ReportControllerTest extends \PHPUnit\Framework\TestCase
   private $downloadPlugin;
 
   /**
+   * @var M\MockInterface $decisionExporterPlugin
+   * DecisionExporterAgentPlugin mock
+   */
+  private $decisionExporterPlugin;
+
+  /**
    * @var DbManager $dbManager
    * DbManager mock
    */
@@ -142,15 +141,16 @@ class ReportControllerTest extends \PHPUnit\Framework\TestCase
     global $container;
     $this->userId = 2;
     $this->groupId = 2;
-    $container = M::mock('ContainerBuilder');
+    $container = M::mock('Psr\Container\ContainerInterface');
     $this->dbHelper = M::mock(DbHelper::class);
     $this->dbManager = M::mock(DbManager::class);
     $this->restHelper = M::mock(RestHelper::class);
     $this->uploadDao = M::mock(UploadDao::class);
-    $this->spdxPlugin = M::mock(SpdxTwoGeneratorUi::class);
+    $this->spdxPlugin = M::mock('SpdxTwoGeneratorUi');
     $this->readmeossPlugin = M::mock('ReadMeOssPlugin');
-    $this->clixmlPlugin = M::mock(CliXmlGeneratorUi::class);
+    $this->clixmlPlugin = M::mock('CliXmlGeneratorUi');
     $this->unifiedPlugin = M::mock('FoUnifiedReportGenerator');
+    $this->decisionExporterPlugin = M::mock('DecisionExporterAgentPlugin');
     $this->downloadPlugin = M::mock('ui_download');
 
     $this->dbHelper->shouldReceive('getDbManager')->andReturn($this->dbManager);
@@ -170,6 +170,8 @@ class ReportControllerTest extends \PHPUnit\Framework\TestCase
     $this->restHelper->shouldReceive('getPlugin')
       ->withArgs(array('agent_founifiedreport'))
       ->andReturn($this->unifiedPlugin);
+    $this->restHelper->shouldReceive('getPlugin')
+      ->withArgs(['agent_fodecisionexporter'])->andReturn($this->decisionExporterPlugin);
 
     $container->shouldReceive('get')->withArgs(array(
       'helper.restHelper'))->andReturn($this->restHelper);
@@ -239,12 +241,13 @@ class ReportControllerTest extends \PHPUnit\Framework\TestCase
    */
   private function getResponseForReport($uploadId, $reportFormat)
   {
+    $GLOBALS["apiBasePath"] = "/repo/api/v1";
     $requestHeaders = new Headers();
     $requestHeaders->setHeader('uploadId', $uploadId);
     $requestHeaders->setHeader('reportFormat', $reportFormat);
     $body = $this->streamFactory->createStream();
     $request = new Request("GET", new Uri("HTTP", "localhost", 80,
-      "/api/v1/report"), $requestHeaders, [], [], $body);
+      "/repo/api/v1/report"), $requestHeaders, [], [], $body);
     $response = new ResponseHelper();
     return $this->reportController->getReport($request, $response, []);
   }
@@ -273,8 +276,10 @@ class ReportControllerTest extends \PHPUnit\Framework\TestCase
       ->withArgs([$this->groupId, $upload])->andReturn([32, 33, ""]);
     $this->clixmlPlugin->shouldReceive('scheduleAgent')
       ->withArgs([$this->groupId, $upload])->andReturn([32, 33, ""]);
+    $this->decisionExporterPlugin->shouldReceive('scheduleAgent')
+      ->withArgs([$this->groupId, $upload])->andReturn([32, 33]);
 
-    $expectedResponse = new Info(201, "localhost/api/v1/report/32",
+    $expectedResponse = new Info(201, "http://localhost/repo/api/v1/report/32",
       InfoType::INFO);
 
     foreach ($this->reportsAllowed as $reportFormat) {
@@ -296,16 +301,9 @@ class ReportControllerTest extends \PHPUnit\Framework\TestCase
     $uploadId = 3;
     $reportFormat = 'report';
 
-    $expectedResponse = new Info(400,
-      "reportFormat must be from [" . implode(",", $this->reportsAllowed) . "]",
-      InfoType::ERROR);
+    $this->expectException(HttpBadRequestException::class);
 
-    $actualResponse = $this->getResponseForReport($uploadId, $reportFormat);
-
-    $this->assertEquals($expectedResponse->getCode(),
-      $actualResponse->getStatusCode());
-    $this->assertEquals($expectedResponse->getArray(),
-      $this->getResponseJson($actualResponse));
+    $this->getResponseForReport($uploadId, $reportFormat);
   }
 
   /**
@@ -321,15 +319,9 @@ class ReportControllerTest extends \PHPUnit\Framework\TestCase
     $this->uploadDao->shouldReceive('isAccessible')->withArgs([$uploadId,
       $this->groupId])->andReturn(false);
 
-    $expectedResponse = new Info(403, "Upload is not accessible!",
-      InfoType::ERROR);
+    $this->expectException(HttpForbiddenException::class);
 
-    $actualResponse = $this->getResponseForReport($uploadId, $reportFormat);
-
-    $this->assertEquals($expectedResponse->getCode(),
-      $actualResponse->getStatusCode());
-    $this->assertEquals($expectedResponse->getArray(),
-      $this->getResponseJson($actualResponse));
+    $this->getResponseForReport($uploadId, $reportFormat);
   }
 
   /**
@@ -348,15 +340,9 @@ class ReportControllerTest extends \PHPUnit\Framework\TestCase
     $this->uploadDao->shouldReceive('getUpload')->withArgs([$uploadId])
       ->andReturn($upload);
 
-    $expectedResponse = new Info(404, "Upload does not exists!",
-      InfoType::ERROR);
+    $this->expectException(HttpNotFoundException::class);
 
-    $actualResponse = $this->getResponseForReport($uploadId, $reportFormat);
-
-    $this->assertEquals($expectedResponse->getCode(),
-      $actualResponse->getStatusCode());
-    $this->assertEquals($expectedResponse->getArray(),
-      $this->getResponseJson($actualResponse));
+    $this->getResponseForReport($uploadId, $reportFormat);
   }
 
   /**
@@ -365,7 +351,7 @@ class ReportControllerTest extends \PHPUnit\Framework\TestCase
    * -# Generate all mock objects
    * -# Generate a temporary file to be downloaded
    * -# Replicate expected headers
-   * -# Check for acutal headers
+   * -# Check for actual headers
    * -# Check for actual file content
    */
   public function testDownloadReport()
@@ -442,16 +428,10 @@ class ReportControllerTest extends \PHPUnit\Framework\TestCase
     $this->uploadDao->shouldReceive('isAccessible')->withArgs([$uploadId,
       $this->groupId])->andReturn(false);
 
-    $expectedResponse = new Info(403, "Report is not accessible.",
-      InfoType::INFO);
+    $this->expectException(HttpForbiddenException::class);
 
-    $actualResponse = $this->reportController->downloadReport(null,
-      new ResponseHelper(), ["id" => $reportId]);
-
-    $this->assertEquals($expectedResponse->getCode(),
-      $actualResponse->getStatusCode());
-    $this->assertEquals($expectedResponse->getArray(),
-      $this->getResponseJson($actualResponse));
+    $this->reportController->downloadReport(null, new ResponseHelper(),
+      ["id" => $reportId]);
   }
 
   /**
@@ -468,16 +448,10 @@ class ReportControllerTest extends \PHPUnit\Framework\TestCase
         [$reportId], "reportValidity"])
       ->andReturn(["jq_type" => ""]);
 
-    $expectedResponse = new Info(404, "No report scheduled with given job id.",
-            InfoType::ERROR);
+    $this->expectException(HttpNotFoundException::class);
 
-    $actualResponse = $this->reportController->downloadReport(null,
-      new ResponseHelper(), ["id" => $reportId]);
-
-    $this->assertEquals($expectedResponse->getCode(),
-      $actualResponse->getStatusCode());
-    $this->assertEquals($expectedResponse->getArray(),
-      $this->getResponseJson($actualResponse));
+    $this->reportController->downloadReport(null, new ResponseHelper(),
+      ["id" => $reportId]);
   }
 
   /**
@@ -505,16 +479,9 @@ class ReportControllerTest extends \PHPUnit\Framework\TestCase
         [$reportId], "reportFileName"])
       ->andReturn(false);
 
-    $expectedResponse = new Info(503, "Report is not ready. Retry after 10s.",
-      InfoType::INFO);
+    $this->expectException(HttpServiceUnavailableException::class);
 
-    $actualResponse = $this->reportController->downloadReport(null,
-      new ResponseHelper(), ["id" => $reportId]);
-
-    $this->assertEquals($expectedResponse->getCode(),
-      $actualResponse->getStatusCode());
-    $this->assertEquals($expectedResponse->getArray(),
-      $this->getResponseJson($actualResponse));
-    $this->assertEquals('10', $actualResponse->getHeaderLine('Retry-After'));
+    $this->reportController->downloadReport(null, new ResponseHelper(),
+      ["id" => $reportId]);
   }
 }

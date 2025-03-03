@@ -1,32 +1,22 @@
 <?php
 /*
-Copyright (C) 2014-2018, Siemens AG
+ SPDX-FileCopyrightText: © 2014-2018 Siemens AG
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-version 2 as published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ SPDX-License-Identifier: GPL-2.0-only
 */
 
 namespace Fossology\Decider\Test;
 
-use Fossology\Decider\DeciderAgent;
-use Fossology\Lib\BusinessRules\ClearingDecisionProcessor;
 use Fossology\Lib\BusinessRules\AgentLicenseEventProcessor;
-use Fossology\Lib\BusinessRules\LicenseMap;
+use Fossology\Lib\BusinessRules\ClearingDecisionProcessor;
 use Fossology\Lib\Dao\AgentDao;
 use Fossology\Lib\Dao\ClearingDao;
-use Fossology\Lib\Dao\UploadDao;
+use Fossology\Lib\Dao\CompatibilityDao;
+use Fossology\Lib\Dao\CopyrightDao;
 use Fossology\Lib\Dao\HighlightDao;
+use Fossology\Lib\Dao\LicenseDao;
 use Fossology\Lib\Dao\ShowJobsDao;
+use Fossology\Lib\Dao\UploadDao;
 use Fossology\Lib\Data\DecisionTypes;
 use Fossology\Lib\Db\DbManager;
 use Mockery as M;
@@ -56,15 +46,30 @@ class SchedulerTestRunnerMock implements SchedulerTestRunner
   private $highlightDao;
   /** @var ShowJobsDao */
   private $showJobsDao;
+  /** @var CopyrightDao $copyrightDao */
+  private $copyrightDao;
+  /** @var CompatibilityDao $compatibilityDao */
+  private $compatibilityDao;
+  /** @var LicenseDao $licenseDao */
+  private $licenseDao;
 
-  public function __construct(DbManager $dbManager, AgentDao $agentDao, ClearingDao $clearingDao, UploadDao $uploadDao, HighlightDao $highlightDao, ShowJobsDao $showJobsDao, ClearingDecisionProcessor $clearingDecisionProcessor, AgentLicenseEventProcessor $agentLicenseEventProcessor)
+  public function __construct(DbManager $dbManager, AgentDao $agentDao,
+                              ClearingDao $clearingDao, UploadDao $uploadDao,
+                              HighlightDao $highlightDao, ShowJobsDao $showJobsDao,
+                              CopyrightDao $copyrightDao, CompatibilityDao $compatibilityDao,
+                              LicenseDao $licenseDao,
+                              ClearingDecisionProcessor $clearingDecisionProcessor,
+                              AgentLicenseEventProcessor $agentLicenseEventProcessor)
   {
     $this->clearingDao = $clearingDao;
     $this->agentDao = $agentDao;
     $this->uploadDao = $uploadDao;
     $this->highlightDao = $highlightDao;
     $this->showJobsDao = $showJobsDao;
+    $this->copyrightDao = $copyrightDao;
     $this->dbManager = $dbManager;
+    $this->compatibilityDao = $compatibilityDao;
+    $this->licenseDao = $licenseDao;
     $this->decisionTypes = new DecisionTypes();
     $this->clearingDecisionProcessor = $clearingDecisionProcessor;
     $this->agentLicenseEventProcessor = $agentLicenseEventProcessor;
@@ -96,9 +101,12 @@ class SchedulerTestRunnerMock implements SchedulerTestRunner
     $container->shouldReceive('get')->with('dao.upload')->andReturn($this->uploadDao);
     $container->shouldReceive('get')->with('dao.highlight')->andReturn($this->highlightDao);
     $container->shouldReceive('get')->with('dao.show_jobs')->andReturn($this->showJobsDao);
+    $container->shouldReceive('get')->with('dao.copyright')->andReturn($this->copyrightDao);
     $container->shouldReceive('get')->with('decision.types')->andReturn($this->decisionTypes);
     $container->shouldReceive('get')->with('businessrules.clearing_decision_processor')->andReturn($this->clearingDecisionProcessor);
     $container->shouldReceive('get')->with('businessrules.agent_license_event_processor')->andReturn($this->agentLicenseEventProcessor);
+    $container->shouldReceive('get')->with('dao.compatibility')->andReturn($this->compatibilityDao);
+    $container->shouldReceive('get')->with('dao.license')->andReturn($this->licenseDao);
     $GLOBALS['container'] = $container;
 
     $fgetsMock = M::mock(\Fossology\Lib\Agent\FgetsMock::class);

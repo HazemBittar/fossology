@@ -1,22 +1,11 @@
 <?php
 /*
- Copyright (C) 2019
- Copyright (C) 2020, Siemens AG
+ SPDX-FileCopyrightText: © 2019 Sandip Kumar Bhuyan <sandipbhuyan@gmail.com>
+ SPDX-FileCopyrightText: © 2020 Siemens AG
  Author: Sandip Kumar Bhuyan<sandipbhuyan@gmail.com>,
          Shaheem Azmal M MD<shaheem.azmal@siemens.com>
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-version 2 as published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ SPDX-License-Identifier: GPL-2.0-only
 */
 
 namespace Fossology\SoftwareHeritage;
@@ -27,7 +16,7 @@ use Fossology\Lib\Dao\LicenseDao;
 use Fossology\Lib\Dao\SoftwareHeritageDao;
 use Fossology\Lib\Dao\UploadDao;
 use Fossology\Lib\Db\DbManager;
-use \GuzzleHttp\Client;
+use Fossology\Lib\Util\HttpUtils;
 use GuzzleHttp\Psr7;
 use GuzzleHttp\Exception\RequestException;
 
@@ -97,32 +86,7 @@ class softwareHeritageAgent extends Agent
       'token' => trim($sysconfig['SwhToken'])
     ];
 
-    $proxy = [];
-    if (array_key_exists('http_proxy', $SysConf['FOSSOLOGY']) &&
-      ! empty($SysConf['FOSSOLOGY']['http_proxy'])) {
-      $proxy['http'] = $SysConf['FOSSOLOGY']['http_proxy'];
-    }
-    if (array_key_exists('https_proxy', $SysConf['FOSSOLOGY']) &&
-      ! empty($SysConf['FOSSOLOGY']['https_proxy'])) {
-      $proxy['https'] = $SysConf['FOSSOLOGY']['https_proxy'];
-    }
-    if (array_key_exists('no_proxy', $SysConf['FOSSOLOGY']) &&
-      ! empty($SysConf['FOSSOLOGY']['no_proxy'])) {
-      $proxy['no'] = explode(',', $SysConf['FOSSOLOGY']['no_proxy']);
-    }
-
-    $version = $SysConf['BUILD']['VERSION'];
-    $headers = ['User-Agent' => "fossology/$version"];
-    if (!empty($this->configuration['token'])) {
-      $headers['Authorization'] = 'Bearer ' . $this->configuration['token'];
-    }
-
-    $this->guzzleClient = new Client([
-      'http_errors' => false,
-      'proxy' => $proxy,
-      'base_uri' => $this->configuration['url'],
-      'headers' => $headers
-    ]);
+    $this->guzzleClient = HttpUtils::getGuzzleClient($SysConf, $this->configuration['url'], $this->configuration['token']);
   }
 
   /**

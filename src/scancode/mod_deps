@@ -1,22 +1,8 @@
 #!/usr/bin/env bash
 
-##############################################################################
-# SPDX-License-Identifier: GPL-2.0
-# SPDX-FileCopyrightText: 2021 Sarita Singh <saritasingh.0425@gmail.com>
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# version 2 as published by the Free Software Foundation.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-##############################################################################
+# SPDX-FileCopyrightText: © 2021 Sarita Singh <saritasingh.0425@gmail.com>
+
+# SPDX-License-Identifier: GPL-2.0-only
 
 source "$(dirname ${BASH_SOURCE[0]})/../../utils/utils.sh"
 
@@ -101,7 +87,8 @@ if [[ $RUNTIME ]]; then
   case "$DISTRO" in
     Debian|Ubuntu)
       apt-get $YesOpt install \
-        libbz2-1.0 xz-utils zlib1g libxml2-dev libxslt1-dev libpopt0
+        libbz2-1.0 xz-utils zlib1g libxml2-dev libxslt1-dev libpopt0 \
+        python3 python3-pip
       case "$CODENAME" in
         stretch)
           apt-get $YesOpt install libjsoncpp1 libboost-program-options1.62.0;;
@@ -109,24 +96,30 @@ if [[ $RUNTIME ]]; then
           apt-get $YesOpt install libjsoncpp1 libboost-program-options1.67.0;;
         bullseye)
           apt-get $YesOpt install libjsoncpp24 libboost-program-options1.74.0;;
-        bionic)
-          apt-get $YesOpt install libjsoncpp1 libboost-program-options1.65.1;;
+        bookworm)
+          apt-get $YesOpt install libjsoncpp25 libboost-program-options1.74.0;;
         sid)
           apt-get $YesOpt install libjsoncpp1 libboost-program-options1.74.0;;
         focal)
           apt-get $YesOpt install libjsoncpp1 libboost-program-options1.71.0;;
+        jammy)
+          apt-get $YesOpt install libjsoncpp25 libboost-program-options1.74.0;;
+        noble)
+          apt-get $YesOpt install libjsoncpp25 libboost-program-options1.74.0;;
         *) echo "ERROR: Unknown or Unsupported $DISTRO $CODENAME release, please report to the mailing list"; exit 1;;
       esac;;
     Fedora)
       yum $YesOpt install \
         jsoncpp boost \
-        xz-libs zlib libxml2-devel libxslt-devel bzip2-libs libpopt0
+        xz-libs zlib libxml2-devel libxslt-devel bzip2-libs libpopt0 \
+        python3 python3-pip
       ;;
     RedHatEnterprise*|CentOS)
       yum $YesOpt install epel-release;
       yum $YesOpt install \
         jsoncpp boost \
-        zlib bzip2-libs xz-libs libxml2-devel libxslt-devel libpopt0
+        zlib bzip2-libs xz-libs libxml2-devel libxslt-devel libpopt0 \
+        python3 python3-pip
       ;;
     *) echo "ERROR: Unknown or Unsupported $DISTRO $CODENAME release, please report to the mailing list"; exit 1;;
   esac

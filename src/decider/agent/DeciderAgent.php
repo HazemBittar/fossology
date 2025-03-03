@@ -1,23 +1,12 @@
 <?php
 /*
  Author: Daniele Fognini
- Copyright (C) 2014-2019, Siemens AG
- Copyright (C) 2021 Orange by Piotr Pszczola <piotr.pszczola@orange.com>
- Copyright (C) 2021 Kaushlendra Pratap <kaushlendrapratap.9837@gmail.com>
+ SPDX-FileCopyrightText: © 2014-2019 Siemens AG
+ SPDX-FileCopyrightText: © 2021 Orange by Piotr Pszczola <piotr.pszczola@orange.com>
+ SPDX-FileCopyrightText: © 2021 Kaushlendra Pratap <kaushlendrapratap.9837@gmail.com>
 
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- version 2 as published by the Free Software Foundation.
-
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License along
- with this program; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- */
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 /**
  * @file DeciderAgent.php
  * @brief Decider agent
@@ -42,6 +31,10 @@
  *
  *   Decisions were marked as work in progress in reused upload
  *   and new scanner finds additional licenses.
+ * - Auto conclude license finding if they are of a license type
+ *
+ *   Auto conclude licenses from the scanner agents if they are of specific
+ *   license type.
  *
  * @section decidersource Agent source
  *   - @link src/decider/agent @endlink
@@ -60,15 +53,20 @@ use Fossology\Lib\BusinessRules\AgentLicenseEventProcessor;
 use Fossology\Lib\BusinessRules\ClearingDecisionProcessor;
 use Fossology\Lib\BusinessRules\LicenseMap;
 use Fossology\Lib\Dao\ClearingDao;
+use Fossology\Lib\Dao\CompatibilityDao;
+use Fossology\Lib\Dao\CopyrightDao;
 use Fossology\Lib\Dao\HighlightDao;
+use Fossology\Lib\Dao\LicenseDao;
+use Fossology\Lib\Dao\ShowJobsDao;
 use Fossology\Lib\Dao\UploadDao;
+use Fossology\Lib\Data\DecisionScopes;
 use Fossology\Lib\Data\DecisionTypes;
 use Fossology\Lib\Data\LicenseMatch;
 use Fossology\Lib\Data\Tree\Item;
 use Fossology\Lib\Data\Tree\ItemTreeBounds;
-use Fossology\Lib\Dao\ShowJobsDao;
-use Fossology\Lib\Dao\CopyrightDao;
+use Fossology\Lib\Exceptions\InvalidAgentStageException;
 use Fossology\Lib\Proxy\ScanJobProxy;
+use Symfony\Component\Process\Process;
 
 include_once(__DIR__ . "/version.php");
 
@@ -85,12 +83,19 @@ class DeciderAgent extends Agent
   const RULES_OJO_NO_CONTRADICTION = 0x10;
   const RULES_COPYRIGHT_FALSE_POSITIVE = 0x20;
   const RULES_COPYRIGHT_FALSE_POSITIVE_CLUTTER = 0x40;
-  const RULES_ALL = 0xff; // self::RULES_NOMOS_IN_MONK | self::RULES_NOMOS_MONK_NINKA | ... -> feature not available in php5.3
+  const RULES_LICENSE_TYPE_CONCLUSION = 0x80;
+  const RULES_ALL = self::RULES_NOMOS_IN_MONK | self::RULES_NOMOS_MONK_NINKA |
+    self::RULES_BULK_REUSE | self::RULES_WIP_SCANNER_UPDATES |
+    self::RULES_OJO_NO_CONTRADICTION | self::RULES_LICENSE_TYPE_CONCLUSION;
 
   /** @var int $activeRules
    * Rules active for upload (nomos in monk; ninka in monk; nomos, ninka and monk)
    */
   private $activeRules;
+  /** @var string $licenseType
+   * License Type to use if concluding.
+   */
+  private $licenseType;
   /** @var UploadDao $uploadDao
    * UploadDao object
    */
@@ -133,6 +138,16 @@ class DeciderAgent extends Agent
    */
   private $copyrightDao;
 
+  /** @var CompatibilityDao $compatibilityDao
+   * Compatibility Dao
+   */
+  private $compatibilityDao;
+
+  /** @var LicenseDao $licenseDao
+   * License Dao
+   */
+  private $licenseDao;
+
   function __construct($licenseMapUsage=null)
   {
     parent::__construct(AGENT_DECIDER_NAME, AGENT_DECIDER_VERSION, AGENT_DECIDER_REV);
@@ -145,8 +160,10 @@ class DeciderAgent extends Agent
     $this->clearingDecisionProcessor = $this->container->get('businessrules.clearing_decision_processor');
     $this->agentLicenseEventProcessor = $this->container->get('businessrules.agent_license_event_processor');
     $this->copyrightDao = $this->container->get('dao.copyright');
+    $this->compatibilityDao = $this->container->get('dao.compatibility');
+    $this->licenseDao = $this->container->get('dao.license');
     $this->licenseMapUsage = $licenseMapUsage;
-    $this->agentSpecifOptions = "r:";
+    $this->agentSpecifOptions = "r:t:";
   }
 
   /**
@@ -157,13 +174,15 @@ class DeciderAgent extends Agent
   {
     $args = $this->args;
     $this->activeRules = array_key_exists('r', $args) ? intval($args['r']) : self::RULES_ALL;
+    $this->licenseType = array_key_exists('t', $args) ?
+        $this->getLicenseType(str_replace(["'", '"'], "", $args['t'])) : "";
     $this->licenseMap = new LicenseMap($this->dbManager, $this->groupId, $this->licenseMapUsage);
 
     if (array_key_exists("r", $args) && (($this->activeRules&self::RULES_COPYRIGHT_FALSE_POSITIVE)== self::RULES_COPYRIGHT_FALSE_POSITIVE)) {
-      $this->getCopyrightsToDisableFalsePositivesClutter($uploadId, 0);
+      $this->getCopyrightsToDisableFalsePositivesClutter($uploadId, false);
     }
     if (array_key_exists("r", $args) && (($this->activeRules&self::RULES_COPYRIGHT_FALSE_POSITIVE_CLUTTER)== self::RULES_COPYRIGHT_FALSE_POSITIVE_CLUTTER)) {
-      $this->getCopyrightsToDisableFalsePositivesClutter($uploadId, 1);
+      $this->getCopyrightsToDisableFalsePositivesClutter($uploadId, true);
     }
     if (array_key_exists("r", $args) && (($this->activeRules&self::RULES_BULK_REUSE)== self::RULES_BULK_REUSE)) {
       $bulkReuser = new BulkReuser();
@@ -208,7 +227,7 @@ class DeciderAgent extends Agent
    * Mark new licenses as WIP.
    * Check the $activeRules and apply them on the item
    * @param Item $item Item to be processes
-   * @return boolean True if operation resulted in success, false otherwise
+   * @return int 1 if operation resulted in success, 0 otherwise
    */
   private function processItem(Item $item)
   {
@@ -263,6 +282,13 @@ class DeciderAgent extends Agent
       $haveDecided = $this->autodecideNomosMonkNinka($itemTreeBounds, $projectedScannerMatches);
     }
 
+    if (!$haveDecided && ($this->activeRules &
+            self::RULES_LICENSE_TYPE_CONCLUSION) ==
+        self::RULES_LICENSE_TYPE_CONCLUSION) {
+      $haveDecided = $this->autodecideLicenseType($itemTreeBounds,
+          $projectedScannerMatches);
+    }
+
     if (!$haveDecided && $markAsWip) {
       $this->clearingDao->markDecisionAsWip($item->getId(), $this->userId, $this->groupId);
     }
@@ -291,7 +317,7 @@ class DeciderAgent extends Agent
    *
    * Get the matches which really agree and apply the decisions.
    * @param ItemTreeBounds $itemTreeBounds ItemTreeBounds to apply decisions
-   * @param LicenseMatch[] $matches        New license matches found
+   * @param LicenseMatch[][][] $matches    New license matches found
    * @return boolean True if decisions applied, false otherwise
    */
   private function autodecideIfOjoMatchesNoContradiction(ItemTreeBounds $itemTreeBounds, $matches)
@@ -319,7 +345,7 @@ class DeciderAgent extends Agent
    *
    * Get the matches which really agree and apply the decisions.
    * @param ItemTreeBounds $itemTreeBounds ItemTreeBounds to apply decisions
-   * @param LicenseMatch[] $matches        New license matches found
+   * @param LicenseMatch[][][] $matches    New license matches found
    * @return boolean True if decisions applied, false otherwise
    */
   private function autodecideIfResoMatchesNoContradiction(ItemTreeBounds $itemTreeBounds, $matches)
@@ -347,7 +373,7 @@ class DeciderAgent extends Agent
    *
    * Get the matches which really agree and apply the decisions.
    * @param ItemTreeBounds $itemTreeBounds ItemTreeBounds to apply decisions
-   * @param LicenseMatch[] $matches        New license matches found
+   * @param LicenseMatch[][][] $matches    New license matches found
    * @return boolean True if decisions applied, false otherwise
    */
   private function autodecideNomosMonkNinka(ItemTreeBounds $itemTreeBounds, $matches)
@@ -372,7 +398,7 @@ class DeciderAgent extends Agent
    *
    * Get the nomos matches which really are inside monk findings and apply the decisions.
    * @param ItemTreeBounds $itemTreeBounds ItemTreeBounds to apply decisions
-   * @param LicenseMatch[] $matches        New license matches found
+   * @param LicenseMatch[][][] $matches    New license matches found
    * @return boolean True if decisions applied, false otherwise
    */
   private function autodecideNomosMatchesInsideMonk(ItemTreeBounds $itemTreeBounds, $matches)
@@ -393,10 +419,35 @@ class DeciderAgent extends Agent
   }
 
   /**
+   * @brief Auto decide matches where there is no license conflict.
+   *
+   * Get the matches where there is no license conflict and licenses are of
+   * provided type.
+   * @param ItemTreeBounds $itemTreeBounds ItemTreeBounds to apply decisions
+   * @param LicenseMatch[][][] $matches      New license matches found
+   * @return boolean True if decisions applied, false otherwise
+   */
+  private function autodecideLicenseType(ItemTreeBounds $itemTreeBounds,
+                                         $matches)
+  {
+    $canDecide = $this->noLicenseConflict($itemTreeBounds, $matches);
+    if ($canDecide) {
+      $canDecide &= $this->allLicenseInType($matches);
+    }
+
+    if ($canDecide) {
+      $this->clearingDecisionProcessor
+          ->makeDecisionFromLastEvents($itemTreeBounds, $this->userId,
+              $this->groupId, DecisionTypes::IDENTIFIED, DecisionScopes::ITEM, [], true);
+    }
+    return $canDecide;
+  }
+
+  /**
    * @brief Given a set of matches, remap according to project id
    * instead of license id
-   * @param LicenseMatch[] $matches Matches to be remaped
-   * @return array[][] Remaped matches
+   * @param LicenseMatch[] $matches Matches to be remapped
+   * @return LicenseMatch[][][] Remapped matches
    */
   protected function remapByProjectedId($matches)
   {
@@ -430,7 +481,7 @@ class DeciderAgent extends Agent
 
   /**
    * @brief Check if matches by nomos are inside monk findings
-   * @param LicenseMatch[] $licenseMatches
+   * @param LicenseMatch[][] $licenseMatches
    * @return boolean True if matches are inside monk, false otherwise
    */
   private function areNomosMatchesInsideAMonkMatch($licenseMatches)
@@ -560,10 +611,17 @@ class DeciderAgent extends Agent
     return true;
   }
 
-  private function getCopyrightsToDisableFalsePositivesClutter($uploadId, $clutter_flag)
+  /**
+   * Use the copyright deactivation script to remove false positive copyrights.
+   * @param int $uploadId      Upload to process
+   * @param bool $clutter_flag Remove clutter as well?
+   * @return void
+   */
+  private function getCopyrightsToDisableFalsePositivesClutter($uploadId,
+                                                               $clutter_flag): void
   {
     if (empty($uploadId)) {
-      return array();
+      return;
     }
     $agentName = 'copyright';
     $uploadTreeTableName = $this->uploadDao->getUploadtreeTableName($uploadId);
@@ -571,7 +629,7 @@ class DeciderAgent extends Agent
     $scanJobProxy->createAgentStatus(array($agentName));
     $selectedScanners = $scanJobProxy->getLatestSuccessfulAgentIds();
     if (!array_key_exists($agentName, $selectedScanners)) {
-      return array();
+      return;
     }
     $latestXpAgentId = $selectedScanners[$agentName];
     $extrawhere = ' agent_fk='.$latestXpAgentId;
@@ -584,7 +642,8 @@ class DeciderAgent extends Agent
     fwrite($tmpFile, $copyrightJSON);
     $deactivatedCopyrightData = $this->callCopyrightDeactivationClutterRemovalScript($tmpFilePath, $clutter_flag);
     if (empty($deactivatedCopyrightData)) {
-      return array();
+      fclose($tmpFile);
+      return;
     }
     $deactivatedCopyrights = json_decode($deactivatedCopyrightData, true);
     foreach ($deactivatedCopyrights as $deactivatedCopyright) {
@@ -595,10 +654,15 @@ class DeciderAgent extends Agent
       $cpTable = 'copyright';
       if ($deactivatedCopyright['is_copyright'] == "t") {
         $action = '';
-        $hash = '';
-        $content = $deactivatedCopyright['edited_text'];
+        if (array_key_exists('decluttered_content', $deactivatedCopyright) &&
+            !empty($deactivatedCopyright['decluttered_content'])) {
+          $content = $deactivatedCopyright['decluttered_content'];
+        } else {
+          // No text update. Nothing to do.
+          $this->heartbeat(1);
+          continue;
+        }
       } else {
-        $hash = $deactivatedCopyright['hash'];
         $action = 'delete';
       }
       $this->copyrightDao->updateTable($itemTreeBounds, $hash, $content, $this->userId, $cpTable, $action);
@@ -606,14 +670,114 @@ class DeciderAgent extends Agent
     }
     fclose($tmpFile);
   }
-  private function callCopyrightDeactivationClutterRemovalScript($tmpFilePath, $clutter_flag)
+
+  /**
+   * Run the Python script with required parameters and return the output.
+   * @param string $tmpFilePath Path to temp file with input JSON
+   * @param bool $clutter_flag  Remove clutter as well?
+   * @return string Return from script.
+   */
+  private function callCopyrightDeactivationClutterRemovalScript($tmpFilePath,
+                                                                 $clutter_flag): string
   {
     $script = "copyrightDeactivationClutterRemovalScript.py";
-    $path_to_file =  __DIR__ . "/$script";
-    $command = "python3 " . $path_to_file . " -f" . $tmpFilePath . " -c" . $clutter_flag;
-    set_python_path();
-    $output = shell_exec($command);
-    $this->heartbeat(0);
-    return $output;
+    $args = ["python3", __DIR__ . "/$script", "--file", $tmpFilePath];
+    if ($clutter_flag) {
+      $args[] = "--clutter";
+    }
+
+    $sleepTime = 5;
+    $maxSleepTime = 25;
+
+    $process = new Process($args);
+    $process->setTimeout(null); // Remove timeout to run indefinitely.
+    $process->setEnv(set_python_path());
+    $process->start();
+
+    do {
+      $this->heartbeat(0);
+      sleep($sleepTime);
+      if ($sleepTime < $maxSleepTime) {
+        $sleepTime += 5;
+      }
+    } while ($process->isRunning());
+
+    echo $process->getErrorOutput();
+
+    return $process->getOutput();
+  }
+
+  /**
+   * Convert the license type key from flag to string value.
+   * @param string $licenseType License Type from args
+   * @return string License type if key found, empty string otherwise.
+   */
+  private function getLicenseType($licenseType)
+  {
+    global $SysConf;
+    $licenseTypes = array_map('trim', explode(',',
+        $SysConf['SYSCONFIG']['LicenseTypes']));
+    if (in_array($licenseType, $licenseTypes)) {
+      return $licenseType;
+    }
+    return "";
+  }
+
+  /**
+   * @brief Check if findings by all agents are same or not
+   * @param ItemTreeBounds $itemTreeBounds Item tree bound to check conflicts
+   * @param LicenseMatch[][][] $licenseMatches License matches
+   * @return boolean True if they match, false otherwise
+   * @throws \Exception
+   */
+  protected function noLicenseConflict($itemTreeBounds, $licenseMatches)
+  {
+    $shortnames = [];
+    foreach ($licenseMatches as $agentMatch) {
+      foreach ($agentMatch as $agentLicenseMatches) {
+        foreach ($agentLicenseMatches as $licenseMatch) {
+          $shortnames[$licenseMatch->getLicenseId()] = $licenseMatch
+              ->getLicenseRef()->getShortName();
+        }
+      }
+    }
+    foreach ($shortnames as $shortname) {
+      try {
+        if (! $this->compatibilityDao->getCompatibilityForFile($itemTreeBounds,
+            $shortname)) {
+          return false;
+        }
+      } catch (InvalidAgentStageException $_) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * @brief Check if findings by all agents are same or not
+   * @param LicenseMatch[][][] $licenseMatches License matches
+   * @return boolean True if they match, false otherwise
+   */
+  protected function allLicenseInType($licenseMatches)
+  {
+    $licenseTypes = [];
+    foreach ($licenseMatches as $agentMatch) {
+      foreach ($agentMatch as $agentLicenseMatches) {
+        foreach ($agentLicenseMatches as $licenseMatch) {
+          if (!array_key_exists($licenseMatch->getLicenseId(), $licenseTypes)) {
+            $licenseTypes[$licenseMatch->getLicenseId()] = $this->licenseDao
+                ->getLicenseType($licenseMatch->getLicenseId());
+          }
+        }
+      }
+    }
+    if (! in_array($this->licenseType, $licenseTypes)) {
+      return false;
+    }
+    if (! empty(array_diff($licenseTypes, [$this->licenseType]))) {
+      return false;
+    }
+    return true;
   }
 }

@@ -1,28 +1,19 @@
 <?php
-/***********************************************************
- * Copyright (C) 2008-2013 Hewlett-Packard Development Company, L.P.
- * Copyright (C) 2015-2016,2021 Siemens AG
- * Copyright (C) 2020 Robert Bosch GmbH, Dineshkumar Devarajan <Devarajan.Dineshkumar@in.bosch.com>
- * Copyright (c) 2021-2022 Orange
- * Contributors: Piotr Pszczola, Bartlomiej Drozdz
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ***********************************************************/
+/*
+ SPDX-FileCopyrightText: © 2008-2013 Hewlett-Packard Development Company, L.P.
+ SPDX-FileCopyrightText: © 2015-2016, 2021 Siemens AG
+ SPDX-FileCopyrightText: © 2020 Robert Bosch GmbH
+ SPDX-FileCopyrightText: © Dineshkumar Devarajan <Devarajan.Dineshkumar@in.bosch.com>
+ SPDX-FileCopyrightText: © 2021-2022 Orange
+ Contributors: Piotr Pszczola, Bartlomiej Drozdz
+
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 use Fossology\Lib\Auth\Auth;
 use Fossology\Lib\Dao\UserDao;
 use Fossology\Lib\Db\DbManager;
+use Fossology\Lib\UI\Component\Menu;
 use Symfony\Component\HttpFoundation\Session\Session;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use League\OAuth2\Client\Provider\GenericProvider;
@@ -135,7 +126,8 @@ class core_auth extends FO_Plugin
         $_SESSION['time_check'] = time() + (480 * 60);
       }
       if (time() >= @$_SESSION['time_check']) {
-        $row = $this->userDao->getUserAndDefaultGroupByUserName(@$_SESSION[Auth::USER_NAME], @$_SESSION['oauthCheck']);
+        $userName = @$_SESSION[Auth::USER_NAME];
+        $row = $this->userDao->getUserAndDefaultGroupByUserName($userName, @$_SESSION['oauthCheck']);
         /* Check for instant logouts */
         if (empty($row['user_pass'])) {
           $row = "";
@@ -162,7 +154,8 @@ class core_auth extends FO_Plugin
     global $SysConf;
 
     if (empty($userRow)) {
-      $userRow = $this->userDao->getUserAndDefaultGroupByUserName('Default User');
+      $username = 'Default User';
+      $userRow = $this->userDao->getUserAndDefaultGroupByUserName($username);
     }
 
     $_SESSION[Auth::USER_ID] = $userRow['user_pk'];
@@ -182,6 +175,10 @@ class core_auth extends FO_Plugin
     if (!$oauth) {
       $_SESSION['oauthCheck'] = $userRow['oauth'];
     }
+    if (array_key_exists(Menu::BANNER_COOKIE, $_COOKIE)) {
+      $_COOKIE[Menu::BANNER_COOKIE] = 0;
+    }
+    setcookie(Menu::BANNER_COOKIE, "", time() - 3600);
   }
 
   /**

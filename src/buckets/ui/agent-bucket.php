@@ -1,21 +1,10 @@
 <?php
-/***********************************************************
- Copyright (C) 2010-2013 Hewlett-Packard Development Company, L.P.
- Copyright (C) 2015 Siemens AG
+/*
+ SPDX-FileCopyrightText: © 2010-2013 Hewlett-Packard Development Company, L.P.
+ SPDX-FileCopyrightText: © 2015 Siemens AG
 
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- version 2 as published by the Free Software Foundation.
-
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License along
- with this program; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-***********************************************************/
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 use Fossology\Lib\Auth\Auth;
 use Fossology\Lib\Dao\AgentDao;
@@ -24,9 +13,13 @@ use Fossology\Lib\Plugin\AgentPlugin;
 
 class BucketAgentPlugin extends AgentPlugin
 {
+  /** @var bucketDesc */
+  private $bucketDesc = "Performs grouping based on different needs. you can group licenses as 'Good Licenses', 'Academic Licenses', 'Copyleft Licenses' etc. One can also group files by copyright holder, or by file-type, or files without my copyright.
+  Note: There is no FOSSology UI to create bucket pools, bucket definitions, scripts, or anything else you need.";
+
   public function __construct() {
     $this->Name = "agent_bucket";
-    $this->Title = _("Bucket Analysis");
+    $this->Title = _("Bucket Analysis <img src=\"images/info_16.png\" data-toggle=\"tooltip\" title=\"".$this->bucketDesc."\" class=\"info-bullet\"/>");
     $this->AgentName = "buckets";
 
     parent::__construct();
@@ -103,7 +96,8 @@ class BucketAgentPlugin extends AgentPlugin
    * @copydoc Fossology::Lib::Plugin::AgentPlugin::AgentAdd()
    * @see Fossology::Lib::Plugin::AgentPlugin::AgentAdd()
    */
-  public function AgentAdd($jobId, $uploadId, &$errorMsg, $dependencies=array(), $arguments=null)
+  public function AgentAdd($jobId, $uploadId, &$errorMsg, $dependencies=[],
+      $arguments=null, $request=null, $unpackArgs=null)
   {
     $default_bucketpool_fk = $this->getDefaultBucketPool();
     if (!$default_bucketpool_fk)
@@ -115,7 +109,8 @@ class BucketAgentPlugin extends AgentPlugin
     $dependencies[] = "agent_nomos";
     $dependencies[] = "agent_pkgagent";
     $jqargs = "bppk=$default_bucketpool_fk, upk=$uploadId";
-    return $this->doAgentAdd($jobId, $uploadId, $errorMsg, $dependencies, $jqargs);
+    return $this->doAgentAdd($jobId, $uploadId, $errorMsg, $dependencies,
+        $jqargs, null, $request);
   }
 }
 

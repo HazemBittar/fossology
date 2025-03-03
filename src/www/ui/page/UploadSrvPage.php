@@ -1,21 +1,10 @@
 <?php
-/***********************************************************
- Copyright (C) 2008-2014 Hewlett-Packard Development Company, L.P.
- Copyright (C) 2015, 2018 Siemens AG
+/*
+ SPDX-FileCopyrightText: © 2008-2014 Hewlett-Packard Development Company, L.P.
+ SPDX-FileCopyrightText: © 2015, 2018 Siemens AG
 
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- version 2 as published by the Free Software Foundation.
-
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License along
- with this program; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-***********************************************************/
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 namespace Fossology\UI\Page;
 
@@ -126,6 +115,7 @@ class UploadSrvPage extends UploadPageBase
 
   /**
    * @param Request $request
+   * @param $vars
    * @return Response
    */
   protected function handleView(Request $request, $vars)
@@ -261,7 +251,7 @@ class UploadSrvPage extends UploadPageBase
 
     /* schedule agents */
     $unpackplugin = &$Plugins[plugin_find_id("agent_unpack")];
-    $unpackArgs = intval($request->get('scm') == 1) ? '-I' : '';
+    $unpackargs = intval($request->get('scm') == 1) ? '-I' : '';
     $ununpack_jq_pk = $unpackplugin->AgentAdd($jobpk, $uploadId, $ErrorMsg, array("wget_agent"), $unpackargs);
     if ($ununpack_jq_pk < 0) {
       return array(false, $text, _($ErrorMsg));

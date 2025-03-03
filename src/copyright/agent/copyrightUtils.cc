@@ -1,20 +1,9 @@
 /*
- * Copyright (C) 2014-2018, Siemens AG
- * Author: Daniele Fognini, Johannes Najjar
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- */
+ SPDX-FileCopyrightText: © 2014-2018,2022, Siemens AG
+ Author: Daniele Fognini, Johannes Najjar
+
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 /**
  * \file copyrightUtils.cc
  * \brief Utilities used by copyright and ecc agent
@@ -234,10 +223,16 @@ static void addDefaultScanners(CopyrightState& state)
     state.addScanner(new regexScanner("author", "copyright"));
 #endif
 
+#ifdef IDENTITY_IPRA
+  if (types & 1<<0)
+    state.addScanner(new regexScanner("ipra", "ipra"));
+#endif
+
 #ifdef IDENTITY_ECC
   if (types & 1<<0)
     state.addScanner(new regexScanner("ecc", "ecc"));
 #endif
+
 #ifdef IDENTITY_KW
   if (types & 1<<0)
     state.addScanner(new regexScanner("keyword", "keyword"));
@@ -411,7 +406,7 @@ bool processUploadId(const CopyrightState& state, int agentId, int uploadId, Cop
 {
   vector<unsigned long> fileIds = databaseHandler.queryFileIdsForUpload(agentId, uploadId, ignoreFilesWithMimeType);
 
-#pragma omp parallel
+#pragma omp parallel num_threads(THREADS)
   {
     CopyrightDatabaseHandler threadLocalDatabaseHandler(databaseHandler.spawn());
 

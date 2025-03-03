@@ -1,5 +1,8 @@
 /* This file defines the doxygen home page.  Currently doxygen is only used on
  * source.
+ * SPDX-FileCopyrightText: © Fossology contributors
+ * 
+ * SPDX-License-Identifier: GPL-2.0-only
  */
 
 /*!
@@ -161,6 +164,7 @@
  * \tableofcontents
  * -# \subpage adj2nest
  * -# \subpage buckets
+ * -# \subpage compatibility
  * -# \subpage copyright
  * -# \subpage decider
  * -# \subpage deciderjob

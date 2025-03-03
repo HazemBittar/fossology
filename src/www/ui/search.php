@@ -1,32 +1,24 @@
 <?php
-/***********************************************************
- Copyright (C) 2010-2014 Hewlett-Packard Development Company, L.P.
- Copyright (C) 2015-2017 Siemens AG
+/*
+ SPDX-FileCopyrightText: © 2010-2014 Hewlett-Packard Development Company, L.P.
+ SPDX-FileCopyrightText: © 2015-2022 Siemens AG
 
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- version 2 as published by the Free Software Foundation.
-
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License along
- with this program; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ***********************************************************/
-
-include_once "search-helper.php";
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 use Fossology\Lib\Auth\Auth;
 use Fossology\Lib\Dao\UploadDao;
+use Fossology\Lib\Dao\SearchHelperDao;
+use Fossology\Lib\Db\DbManager;
 
 class search extends FO_Plugin
 {
   protected $MaxPerPage  = 100;  /* maximum number of result items per page */
   /** @var UploadDao */
   private $uploadDao;
+
+  /** @var SearchHelperDao */
+  private $searchHelperDao;
 
   function __construct()
   {
@@ -40,6 +32,7 @@ class search extends FO_Plugin
     parent::__construct();
 
     $this->uploadDao = $GLOBALS['container']->get('dao.upload');
+    $this->searchHelperDao = $GLOBALS['container']->get('dao.searchhelperdao');
   }
 
   function PostInitialize()
@@ -53,14 +46,12 @@ class search extends FO_Plugin
     $allUploadsPre = $this->uploadDao->getActiveUploadsArray();
     $filteredUploadsList = array();
 
-    $filteredUploadsList = array_filter($allUploadsPre, function($uploadObj){
+    return array_filter($allUploadsPre, function($uploadObj){
       if ($this->uploadDao->isAccessible($uploadObj->getId(), Auth::getGroupId())) {
         return true;
       }
       return false;
     });
-
-    return $filteredUploadsList;
   }
 
   /**
@@ -212,8 +203,16 @@ class search extends FO_Plugin
       $this->vars["Copyright"] = $Copyright;
     }
 
-    $Limit = GetParm("limit",PARM_INTEGER);
-    $Page = GetParm("page",PARM_INTEGER);
+    $Limit = GetParm("limit", PARM_INTEGER);
+    if (!empty($Limit)) {
+      $GETvars .= "&limit=" . urlencode($Limit);
+      $this->MaxPerPage = $Limit;
+    }
+
+    $Page = GetParm("page", PARM_INTEGER);
+    if (!empty($Page)) {
+      $GETvars .= "&page=" . urlencode($Page);
+    }
 
     $this->vars["postUrl"] = Traceback_uri() . "?mod=" . self::getName();
 
@@ -221,17 +220,16 @@ class search extends FO_Plugin
       if (empty($Page)) {
         $Page = 0;
       }
-      $UploadtreeRecsResult = GetResults($Item, $Filename,$Upload, $tag, $Page, $Limit, $SizeMin,
+      $UploadtreeRecsResult = $this->searchHelperDao->GetResults($Item, $Filename, $Upload, $tag, $Page, $Limit, $SizeMin,
         $SizeMax, $searchtype, $License, $Copyright, $this->uploadDao,
-        Auth::getGroupId(), $PG_CONN);
+        Auth::getGroupId());
       $html = "<hr>\n";
       $message = _(
         "The indented search results are same files in different folders");
       $html .= "<H4>$message</H4>\n";
       $text = $UploadtreeRecsResult[1] . " " . _("Files matching");
       $html .= "<H2>$text " . htmlentities($Filename) . " in ". htmlentities($SelectedUploadName) . "</H2>\n";
-      $html .= $this->HTMLResults($UploadtreeRecsResult[0], $Page, $GETvars,
-        $License, $Copyright);
+      $html .= $this->HTMLResults($UploadtreeRecsResult[0], $Page, $GETvars);
       $this->vars["result"] = $html;
     }
   }

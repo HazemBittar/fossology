@@ -1,21 +1,10 @@
 <?php
-/***************************************************************
- Copyright (C) 2018 Siemens AG
+/*
+ SPDX-FileCopyrightText: © 2018 Siemens AG
  Author: Gaurav Mishra <mishra.gaurav@siemens.com>
 
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- version 2 as published by the Free Software Foundation.
-
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License along
- with this program; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ***************************************************************/
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 /**
  * @dir
  * @brief Controllers for REST requests
@@ -25,9 +14,12 @@
 
 namespace Fossology\UI\Api\Controllers;
 
-use Psr\Container\ContainerInterface;
-use Fossology\UI\Api\Helper\RestHelper;
+use Fossology\Lib\Auth\Auth;
+use Fossology\UI\Api\Exceptions\HttpForbiddenException;
+use Fossology\UI\Api\Exceptions\HttpNotFoundException;
 use Fossology\UI\Api\Helper\DbHelper;
+use Fossology\UI\Api\Helper\RestHelper;
+use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
 /**
@@ -83,6 +75,53 @@ class RestController
     } else {
       // application/x-www-form-urlencoded or multipart/form-data
       return $request->getParsedBody();
+    }
+  }
+
+  /**
+   * Throw an HttpForbiddenException if the user is not admin.
+   *
+   * @throws HttpForbiddenException
+   */
+  protected function throwNotAdminException(): void
+  {
+    if (!Auth::isAdmin()) {
+      throw new HttpForbiddenException("Only admin can access this endpoint.");
+    }
+  }
+
+  /**
+   * Check if upload is accessible
+   *
+   * @param integer $id Upload ID
+   * @throws HttpNotFoundException Upload not found
+   * @throws HttpForbiddenException Upload not accessible
+   */
+  protected function uploadAccessible($id): void
+  {
+    if (! $this->dbHelper->doesIdExist("upload", "upload_pk", $id)) {
+      throw new HttpNotFoundException("Upload does not exist");
+    }
+    if (! $this->restHelper->getUploadDao()->isAccessible($id,
+        $this->restHelper->getGroupId())) {
+      throw new HttpForbiddenException("Upload is not accessible");
+    }
+  }
+
+  /**
+   * Check if upload tree is accessible
+   *
+   * @param int $uploadId
+   * @param int $itemId
+   * @return void
+   * @throws HttpNotFoundException
+   */
+  protected function isItemExists(int $uploadId, int $itemId): void
+  {
+    if (!$this->dbHelper->doesIdExist(
+      $this->restHelper->getUploadDao()->getUploadtreeTableName($uploadId),
+      "uploadtree_pk", $itemId)) {
+      throw new HttpNotFoundException("Item does not exist");
     }
   }
 }

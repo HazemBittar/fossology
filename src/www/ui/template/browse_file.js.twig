@@ -1,8 +1,6 @@
-{# Copyright 2015-2017 Siemens AG
+{# SPDX-FileCopyrightText: © 2015-2017 Siemens AG
 
-   Copying and distribution of this file, with or without modification,
-   are permitted in any medium without royalty provided the copyright notice and this notice are preserved.
-   This file is offered as-is, without any warranty.
+   SPDX-License-Identifier: FSFAP
 #}
 
 function createDirlistTable() {
@@ -88,7 +86,8 @@ $(document).ready(function () {
     }
   });
 
-  $('#markDecisions').click(function () {
+  $('#editFilter').change(function () {
+    var operationType = $(this).val();
     var currentArray = [];
     $(".selectedForIrrelevant:checked").each(function() {
       getCurrentVal = $(this).val();
@@ -96,10 +95,13 @@ $(document).ready(function () {
         currentArray.push(getCurrentVal);
       }
     });
-    if (currentArray.length === 0) {
-      alert('Please select checkboxes in actions column!');
-    } else {
+    if (currentArray.length === 0 || currentArray.length === 1) {
+      alert('Kindly choose multiple checkboxes in the actions column!');
+      $('#editFilter').val(0);
+    } else if (operationType == 1) {
       openUserModal(currentArray);
+    } else {
+      openBulkModal(currentArray);
     }
   });
 });

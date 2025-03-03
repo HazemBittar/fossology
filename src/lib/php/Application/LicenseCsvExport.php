@@ -1,24 +1,15 @@
 <?php
 /*
-Copyright (C) 2015,2021, Siemens AG
+ SPDX-FileCopyrightText: © 2015, 2021 Siemens AG
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-version 2 as published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ SPDX-License-Identifier: GPL-2.0-only
 */
+
 
 namespace Fossology\Lib\Application;
 
 use Fossology\Lib\BusinessRules\LicenseMap;
+use Fossology\Lib\Data\LicenseRef;
 use Fossology\Lib\Db\DbManager;
 
 /**
@@ -74,20 +65,25 @@ class LicenseCsvExport
    * @param int $rf Set the license ID to get only one license, set 0 to get all
    * @return string csv
    */
-  public function createCsv($rf=0)
+  public function createCsv($rf=0, $allCandidates=false, $generateJson=false)
   {
-    $forGroupBy = " GROUP BY rf.rf_shortname, rf.rf_fullname, rf.rf_text, rc.rf_shortname, rr.rf_shortname, rf.rf_url, rf.rf_notes, rf.rf_source, rf.rf_risk, gp.group_name";
+    $forAllCandidates = "WHERE marydone = true";
+    if ($allCandidates) {
+      $forAllCandidates = "";
+    }
+    $forGroupBy = " GROUP BY rf.rf_shortname, rf.rf_fullname, rf.rf_licensetype, rf.rf_spdx_id, rf.rf_text, rc.rf_shortname, rr.rf_shortname, rf.rf_url, rf.rf_notes, rf.rf_source, rf.rf_risk, gp.group_name";
     $sql = "WITH marydoneCand AS (
   SELECT * FROM license_candidate
-  WHERE marydone = true
+  $forAllCandidates
 ), allLicenses AS (
 SELECT DISTINCT ON(rf_pk) * FROM
   ONLY license_ref
   NATURAL FULL JOIN marydoneCand)
 SELECT
-  rf.rf_shortname, rf.rf_fullname, rf.rf_text, rc.rf_shortname parent_shortname,
-  rr.rf_shortname report_shortname, rf.rf_url, rf.rf_notes, rf.rf_source,
-  rf.rf_risk, gp.group_name, string_agg(ob_topic, ', ') obligations
+  rf.rf_shortname AS shortname, rf.rf_fullname AS fullname, rf.rf_spdx_id AS spdx_id, rf.rf_licensetype as license_type, rf.rf_text AS text,
+  rc.rf_shortname parent_shortname, rr.rf_shortname report_shortname, rf.rf_url AS url,
+  rf.rf_notes AS notes, rf.rf_source AS source, rf.rf_risk AS risk, gp.group_name AS group,
+  string_agg(ob_topic, ', ') obligations
 FROM allLicenses AS rf
   LEFT OUTER JOIN obligation_map om ON om.rf_fk = rf.rf_pk
   LEFT OUTER JOIN obligation_ref ON ob_fk = ob_pk
@@ -113,17 +109,28 @@ WHERE rf.rf_detector_type=$1";
       $vars = $this->dbManager->fetchAll( $res );
       $this->dbManager->freeResult($res);
     }
-    $out = fopen('php://output', 'w');
-    ob_start();
-    $head = array(
-      'shortname', 'fullname', 'text', 'parent_shortname', 'report_shortname',
-      'url', 'notes', 'source', 'risk', 'group', 'obligations');
-    fputcsv($out, $head, $this->delimiter, $this->enclosure);
-    foreach ($vars as $row) {
-      fputcsv($out, $row, $this->delimiter, $this->enclosure);
+    if ($generateJson) {
+      return json_encode($vars, JSON_PRETTY_PRINT);
+    } else {
+      $out = fopen('php://output', 'w');
+      ob_start();
+      $head = array(
+        'shortname', 'fullname', 'spdx_id', 'licensetype', 'text', 'parent_shortname',
+        'report_shortname', 'url', 'notes', 'source', 'risk', 'group',
+        'obligations');
+      fputs($out, $bom =( chr(0xEF) . chr(0xBB) . chr(0xBF) ));
+      fputcsv($out, $head, $this->delimiter, $this->enclosure);
+      foreach ($vars as $row) {
+        $row['spdx_id'] = LicenseRef::convertToSpdxId($row['shortname'],
+          $row['spdx_id']);
+        if (strlen($row['text']) > LicenseMap::MAX_CHAR_LIMIT) {
+          $row['text'] = LicenseMap::TEXT_MAX_CHAR_LIMIT;
+        }
+        fputcsv($out, $row, $this->delimiter, $this->enclosure);
+      }
+      $content = ob_get_contents();
+      ob_end_clean();
+      return $content;
     }
-    $content = ob_get_contents();
-    ob_end_clean();
-    return $content;
   }
 }

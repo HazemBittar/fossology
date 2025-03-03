@@ -1,21 +1,10 @@
 <?php
-/***********************************************************
- * Copyright (C) 2014-2017 Siemens AG
- * Author: J.Najjar
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ***********************************************************/
+/*
+ SPDX-FileCopyrightText: © 2014-2017 Siemens AG
+ Author: J.Najjar
+
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 use Fossology\Lib\Auth\Auth;
 use Fossology\Lib\Dao\UploadDao;
@@ -25,7 +14,8 @@ use Fossology\Lib\Dao\UploadDao;
  * @abstract
  * @brief Base class for histogram plugins
  */
-abstract class HistogramBase extends FO_Plugin {
+abstract class HistogramBase extends FO_Plugin
+{
   /** @var string
    * Name of agent serving the histogram
    */
@@ -63,7 +53,7 @@ abstract class HistogramBase extends FO_Plugin {
    * @param int    $uploadId     Upload id to process
    * @param int    $uploadTreeId Uploadtree id of the item
    * @param string $filter       Filter for query
-   * @param int    $agentId      Id of the agent populated the result
+   * @param string $agentId      Id of the agent populated the result
    * @return array
    * @todo Template this! For now I just template the js
    */
@@ -74,12 +64,16 @@ abstract class HistogramBase extends FO_Plugin {
     $out = array("type" => $type, "sorting" => $sorting, "uploadId" => $uploadId,
         "uploadTreeId" => $uploadTreeId, "agentId" => $agentId, "filter" => $filter, "description" => $description);
     $typeDescriptor = "";
-    if($type !== "statement" || $type !== 'scancode_statement')
-    {
+    if ($type !== "statement" || $type !== 'scancode_statement') {
       $typeDescriptor = $description;
     }
     $output = "<h4>Activated $typeDescriptor statements:</h4>
-<div><table border=1 width='100%' id='copyright".$type."' class='wordbreaktable'></table></div>
+<div>
+  <div class='btn btn-default' style='float:right; padding:5px; margin:5px;'>
+    <input type='checkbox' style='padding:2px;' id='inverseSearchActivated".$type."' name='inverseSearch'/> 
+    <label class='control-label' for='inverseSearchActivated".$type."'>Inverse Search</label>
+  </div>
+<table border=1 width='100%' id='copyright".$type."' class='wordbreaktable'></table></div>
 <br/><br/>
 <div>
   <table border=0 width='100%' id='searchReplaceTable".$type."'>
@@ -124,6 +118,10 @@ abstract class HistogramBase extends FO_Plugin {
   </table>
   <br/><br/>
   <h4>Deactivated $typeDescriptor statements:</h4>
+  <div class='btn btn-default' style='float:right; padding:5px; margin:5px;'>
+  <input type='checkbox' id='inverseSearchDeactivated".$type."' name='inverseSearch'/> 
+  <label class='control-label' for='inverseSearchDeactivated".$type."'>Inverse Search</label>
+  </div>
 </div>
 <div><table border=1 width='100%' id='copyright".$type."deactivated' class='wordbreaktable'></table>
   <br/><br/>
@@ -140,7 +138,7 @@ abstract class HistogramBase extends FO_Plugin {
    * @param int    $upload_pk     Upload id for fetch request
    * @param int    $Uploadtree_pk Upload tree id of the item
    * @param string $filter        Filter to apply for query
-   * @param int    $agentId       Agent id which populate the result
+   * @param string $agentId       Agent id which populate the result
    * @param array  $VF
    * @return array Output, table variables
    */
@@ -155,12 +153,13 @@ abstract class HistogramBase extends FO_Plugin {
    * @param string $Uri                  URI
    * @param string $filter               Filter for query
    * @param string $uploadtree_tablename Uploadtree table to use
-   * @param int    $Agent_pk             Agent id
+   * @param array  $Agent_pk             Agent id
    * @return array|void
    */
   protected function ShowUploadHist($upload_pk, $Uploadtree_pk, $Uri, $filter, $uploadtree_tablename, $Agent_pk)
   {
-    list($ChildCount, $VF) = $this->getFileListing($Uploadtree_pk, $Uri, $uploadtree_tablename, $Agent_pk, $upload_pk);
+    $Agent_pks = implode("," , $Agent_pk);
+    list($ChildCount, $VF) = $this->getFileListing($Uploadtree_pk, $Uri, $uploadtree_tablename, $Agent_pks, $upload_pk);
     $this->vars['childcount'] = $ChildCount;
     $this->vars['fileListing'] = $VF;
 
@@ -174,8 +173,7 @@ abstract class HistogramBase extends FO_Plugin {
     Solution: if $ChildCount == 0, then just view the license!
     $ChildCount can also be zero if the directory is empty.
      ***************************************/
-    if ($ChildCount == 0)
-    {
+    if ($ChildCount == 0) {
       $isADirectory = $this->isADirectory($Uploadtree_pk);
       if ($isADirectory) {
         return;
@@ -183,7 +181,7 @@ abstract class HistogramBase extends FO_Plugin {
       $ModLicView = plugin_find($this->viewName);
       return $ModLicView->execute();
     }
-    return $this->fillTables($upload_pk, $Uploadtree_pk, $filter, $Agent_pk, $VF);
+    return $this->fillTables($upload_pk, $Uploadtree_pk, $filter, $Agent_pks, $VF);
   }
 
   /**
@@ -210,8 +208,7 @@ abstract class HistogramBase extends FO_Plugin {
     $filter = GetParm("filter",PARM_STRING);
 
     /* check upload permissions */
-    if (!$this->uploadDao->isAccessible($uploadId, Auth::getGroupId()))
-    {
+    if (!$this->uploadDao->isAccessible($uploadId, Auth::getGroupId())) {
       $text = _("Permission Denied");
       return "<h2>$text</h2>";
     }
@@ -225,23 +222,25 @@ abstract class HistogramBase extends FO_Plugin {
     /************************/
 
     $this->vars['dir2browse'] =  Dir2Browse($this->Name,$item,NULL,1,"Browse",-1,'','',$uploadtree_tablename);
-    if (empty($uploadId))
-    {
+    if (empty($uploadId)) {
       return 'no item selected';
     }
 
     /* advanced interface allowing user to select dataset (agent version) */
     $dataset = $this->agentName."_dataset";
-    $arstable = $this->agentName."_ars";
+    $arsCopyrighttable = $this->agentName."_ars";
     /* get proper agent_id */
-    // $agentId = GetParm("agent", PARM_INTEGER);
-    if (empty($agentId))
-    {
-      $agentId = LatestAgentpk($uploadId, $arstable);
+
+    $agentId[] = LatestAgentpk($uploadId, $arsCopyrighttable);
+    if ($this->agentName == "copyright") {
+      $arsResotable = "reso_ars";
+      // $agentId[] = LatestAgentpk($uploadId, $arsResotable);
+      if (LatestAgentpk($uploadId, $arsResotable) != 0) {
+        $agentId[] = LatestAgentpk($uploadId, $arsResotable);
+      }
     }
 
-    if ($agentId == 0)
-    {
+    if (empty($agentId) || $agentId[0] == 0) {
       /* schedule copyright */
       $OutBuf .= ActiveHTTPscript("Schedule");
       $OutBuf .= "<script language='javascript'>\n";
@@ -268,8 +267,7 @@ abstract class HistogramBase extends FO_Plugin {
     $AgentSelect = AgentSelect($this->agentName, $uploadId, $dataset, $agentId, "onchange=\"addArsGo('newds', $dataset);\"");
 
     /* change the copyright  result when selecting one version of copyright */
-    if (!empty($AgentSelect))
-    {
+    if (!empty($AgentSelect)) {
       $action = Traceback_uri() . '?mod=' . GetParm('mod',PARM_RAW) . Traceback_parm_keep(array('upload','item'));
 
       $OutBuf .= "<script type='text/javascript'>
@@ -288,8 +286,7 @@ abstract class HistogramBase extends FO_Plugin {
 
     $selectKey = $filter == 'nolic' ? 'nolic' : 'all';
     $OutBuf .= "<select name='view_filter' class='form-control-sm' id='view_filter' onchange='ChangeFilter(this,$uploadId, $item);'>";
-    foreach(array('all'=>_("Show all"), 'nolic'=> _("Show files without licenses")) as $key=>$text)
-    {
+    foreach (array('all'=>_("Show all"), 'nolic'=> _("Show files without licenses")) as $key=>$text) {
       $selected = ($selectKey == $key) ? "selected" : "";
       $OutBuf .= "<option $selected value=\"$key\">$text</option>";
     }
@@ -308,7 +305,7 @@ abstract class HistogramBase extends FO_Plugin {
    * @param int    $Uploadtree_pk        Uploadtree id
    * @param string $Uri                  URI
    * @param string $uploadtree_tablename Uploadtree table name
-   * @param int    $Agent_pk             Agent id
+   * @param string $Agent_pk             Agent id
    * @param int    $upload_pk            Upload id
    * @return array
    */
@@ -321,19 +318,15 @@ abstract class HistogramBase extends FO_Plugin {
     $ChildCount = 0;
     $ChildLicCount = 0;
     $ChildDirCount = 0; /* total number of directory or containers */
-    foreach ($Children as $c)
-    {
-      if (Iscontainer($c['ufile_mode']))
-      {
+    foreach ($Children as $c) {
+      if (Iscontainer($c['ufile_mode'])) {
         $ChildDirCount++;
       }
     }
 
     $VF .= "<table border=0>";
-    foreach ($Children as $child)
-    {
-      if (empty($child))
-      {
+    foreach ($Children as $child) {
+      if (empty($child)) {
         continue;
       }
       $ChildCount++;
@@ -341,22 +334,18 @@ abstract class HistogramBase extends FO_Plugin {
       global $Plugins;
       $ModLicView = &$Plugins[plugin_find_id($this->viewName)];
       /* Determine the hyperlink for non-containers to view-license  */
-      if (!empty($child['pfile_fk']) && !empty($ModLicView))
-      {
+      if (!empty($child['pfile_fk']) && !empty($ModLicView)) {
         $LinkUri = Traceback_uri();
         $LinkUri .= "?mod=".$this->viewName."&agent=$Agent_pk&upload=$upload_pk&item=$child[uploadtree_pk]";
-      } else
-      {
+      } else {
         $LinkUri = NULL;
       }
 
       /* Determine link for containers */
-      if (Iscontainer($child['ufile_mode']))
-      {
+      if (Iscontainer($child['ufile_mode'])) {
         $uploadtree_pk = DirGetNonArtifact($child['uploadtree_pk'], $uploadtree_tablename);
         $LicUri = "$Uri&item=" . $uploadtree_pk;
-      } else
-      {
+      } else {
         $LicUri = NULL;
       }
 
@@ -365,18 +354,14 @@ abstract class HistogramBase extends FO_Plugin {
       $LicCount = 0;
 
       $cellContent = Isdir($child['ufile_mode']) ? $child['ufile_name'].'/' : $child['ufile_name'];
-      if (Iscontainer($child['ufile_mode']))
-      {
+      if (Iscontainer($child['ufile_mode'])) {
         $cellContent = "<a class='btn btn-outline-secondary btn-sm' href='$LicUri'><b>$cellContent</b></a>";
-      }
-      else if (!empty($LinkUri)) //  && ($LicCount > 0))
-      {
+      } elseif (!empty($LinkUri)) { //  && ($LicCount > 0))
         $cellContent = "<a class='btn btn-outline-secondary btn-sm' href='$LinkUri'>$cellContent</a>";
       }
       $VF .= "<tr><td id='$child[uploadtree_pk]' align='left'>$cellContent</td><td>";
 
-      if ($LicCount)
-      {
+      if ($LicCount) {
         $VF .= "[" . number_format($LicCount, 0, "", ",") . "&nbsp;";
         $VF .= "license" . ($LicCount == 1 ? "" : "s");
         $VF .= "</a>";
@@ -405,7 +390,8 @@ abstract class HistogramBase extends FO_Plugin {
    * @brief Get sorting orders
    * @return string[][]
    */
-  public function returnSortOrder () {
+  public static function returnSortOrder ()
+  {
     $defaultOrder = array (
         array(0, "desc"),
         array(1, "desc"),
@@ -427,5 +413,4 @@ abstract class HistogramBase extends FO_Plugin {
    * @return string JavaScript block
    */
   abstract protected function createScriptBlock();
-
 }

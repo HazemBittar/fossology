@@ -1,20 +1,9 @@
 <?php
 /*
-Copyright (C) 2014, Siemens AG
-Authors: Steffen Weber, Andreas Würl
+ SPDX-FileCopyrightText: © 2014 Siemens AG
+ Authors: Steffen Weber, Andreas Würl
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-version 2 as published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ SPDX-License-Identifier: GPL-2.0-only
 */
 
 namespace Fossology\Lib\Db;
@@ -310,10 +299,12 @@ abstract class DbManager
   }
 
   /**
-   * @param string
-   * @param string
-   * @param array
-   * @param string
+   * @param $tableName
+   * @param $keys
+   * @param $params
+   * @param string $sqlLog
+   * @param string $returning
+   * @return mixed|void
    */
   public function insertInto($tableName, $keys, $params, $sqlLog='', $returning='')
   {
@@ -336,10 +327,11 @@ abstract class DbManager
   }
 
   /**
-   * @param string
-   * @param array with keys as column names
-   * @param string
-   * @param string column that should be returned (empty string if not required)
+   * @param $tableName
+   * @param array $assocParams array with keys as column names
+   * @param string $sqlLog
+   * @param string $returning column that should be returned (empty string if not required)
+   * @return mixed|null
    */
   public function insertTableRow($tableName,$assocParams,$sqlLog='',$returning='')
   {

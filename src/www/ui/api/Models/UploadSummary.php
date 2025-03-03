@@ -1,20 +1,9 @@
 <?php
-/***************************************************************
-Copyright (C) 2020 Siemens AG
+/*
+ SPDX-FileCopyrightText: © 2020 Siemens AG
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-version 2 as published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ***************************************************************/
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 /**
  * @file
  * @brief Upload summary model
@@ -90,6 +79,26 @@ class UploadSummary
    * No of files with copyrights
    */
   private $copyrightCount;
+  /**
+   * @var integer $concludedNoLicenseFoundCount
+   * No of concluded files with no license found
+   */
+  private $concludedNoLicenseFoundCount;
+  /**
+   * @var integer $fileCount
+   * No of files in upload
+   */
+  private $fileCount;
+  /**
+   * @var integer $noScannerLicenseFoundCount
+   * No of files with no license found by scanner
+   */
+  private $noScannerLicenseFoundCount;
+  /**
+   * @var integer $scannerUniqueLicenseCount
+   * No of unique licenses found by scanner
+   */
+  private $scannerUniqueLicenseCount;
 
   public function __construct()
   {
@@ -105,6 +114,10 @@ class UploadSummary
     $this->clearingStatus = UploadStatus::OPEN;
     $this->copyrightCount = 0;
     $this->assignee = null;
+    $this->concludedNoLicenseFoundCount = 0;
+    $this->fileCount = 0;
+    $this->noScannerLicenseFoundCount = 0;
+    $this->scannerUniqueLicenseCount = 0;
   }
 
   /**
@@ -134,7 +147,11 @@ class UploadSummary
       "filesToBeCleared"        => $this->filesToBeCleared,
       "filesCleared"            => $this->filesCleared,
       "clearingStatus"          => self::statusToString($this->clearingStatus),
-      "copyrightCount"          => $this->copyrightCount
+      "copyrightCount"          => $this->copyrightCount,
+      "concludedNoLicenseFoundCount" => $this->concludedNoLicenseFoundCount,
+      "fileCount"               => $this->fileCount,
+      "noScannerLicenseFoundCount" => $this->noScannerLicenseFoundCount,
+      "scannerUniqueLicenseCount" => $this->scannerUniqueLicenseCount
     ];
   }
 
@@ -232,6 +249,38 @@ class UploadSummary
   public function setCopyrightCount($copyrightCount)
   {
     $this->copyrightCount = intval($copyrightCount);
+  }
+
+  /**
+   * @param number $concludedNoLicenseFoundCount
+   */
+  public function setConcludedNoLicenseFoundCount($concludedNoLicenseFoundCount)
+  {
+    $this->concludedNoLicenseFoundCount = intval($concludedNoLicenseFoundCount);
+  }
+
+  /**
+   * @param number $fileCount
+   */
+  public function setFileCount($fileCount)
+  {
+    $this->fileCount = intval($fileCount);
+  }
+
+  /**
+   * @param number $noScannerLicenseFoundCount
+   */
+  public function setNoScannerLicenseFoundCount($noScannerLicenseFoundCount)
+  {
+    $this->noScannerLicenseFoundCount = intval($noScannerLicenseFoundCount);
+  }
+
+  /**
+   * @param number $scannerUniqueLicenseCount
+   */
+  public function setScannerUniqueLicenseCount($scannerUniqueLicenseCount)
+  {
+    $this->scannerUniqueLicenseCount = intval($scannerUniqueLicenseCount);
   }
 
   /**

@@ -1,23 +1,13 @@
 <?php
 /*
- Copyright (C) 2015-2019,2021 Siemens AG
+ SPDX-FileCopyrightText: © 2015-2019, 2021 Siemens AG
+ SPDX-FileCopyrightText: © 2020 Robert Bosch GmbH
+ SPDX-FileCopyrightText: © Dineshkumar Devarajan <Devarajan.Dineshkumar@in.bosch.com>
  Author: Shaheem Azmal<shaheem.azmal@siemens.com>,
          Anupam Ghosh <anupam.ghosh@siemens.com>
- Copyright (C) 2020 Robert Bosch GmbH, Dineshkumar Devarajan <Devarajan.Dineshkumar@in.bosch.com>
 
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- version 2 as published by the Free Software Foundation.
-
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License along
- with this program; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- */
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 /**
  * @namespace Fossology::UI::Ajax
@@ -26,9 +16,9 @@
 namespace Fossology\UI\Ajax;
 
 use Fossology\Lib\Auth\Auth;
+use Fossology\Lib\Dao\ClearingDao;
 use Fossology\Lib\Dao\ShowJobsDao;
 use Fossology\Lib\Dao\UserDao;
-use Fossology\Lib\Dao\ClearingDao;
 use Fossology\Lib\Db\DbManager;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
@@ -215,11 +205,12 @@ class AjaxShowJobs extends \FO_Plugin
   } /* getGeekyScanDetailsForJob() */
 
   /**
-   * @brief Returns an upload job status in array
+   * @brief Returns an upload job status in array for API or browser
    * @param array $jobData
-   * @return Returns an upload job status in array
+   * @param bool $forApi
+   * @return Returns an upload job status in array for API or browser
    **/
-  protected function getShowJobsForEachJob($jobData)
+  public function getShowJobsForEachJob($jobData, $forApi = false)
   {
     if (count($jobData) == 0) {
       return array('showJobsData' => "There are no jobs to display");
@@ -232,13 +223,15 @@ class AjaxShowJobs extends \FO_Plugin
         'jobQueue' => $jobs['jobqueue']
       );
       foreach ($jobArr['jobQueue'] as $key => $singleJobQueue) {
-        if (! empty($jobArr['jobQueue'][$key]['jq_starttime'])) {
-          $jobArr['jobQueue'][$key]['jq_starttime'] = Convert2BrowserTime(
-            $jobArr['jobQueue'][$key]['jq_starttime']);
-        }
-        if (! empty($jobArr['jobQueue'][$key]['jq_endtime'])) {
-          $jobArr['jobQueue'][$key]['jq_endtime'] = Convert2BrowserTime(
-            $jobArr['jobQueue'][$key]['jq_endtime']) ;
+        if (! $forApi) {
+          if (! empty($jobArr['jobQueue'][$key]['jq_starttime'])) {
+            $jobArr['jobQueue'][$key]['jq_starttime'] = Convert2BrowserTime(
+              $jobArr['jobQueue'][$key]['jq_starttime']);
+          }
+          if (! empty($jobArr['jobQueue'][$key]['jq_endtime'])) {
+            $jobArr['jobQueue'][$key]['jq_endtime'] = Convert2BrowserTime(
+              $jobArr['jobQueue'][$key]['jq_endtime']) ;
+          }
         }
         if (! empty($singleJobQueue["jq_endtime"])) {
           $numSecs = strtotime($singleJobQueue['jq_endtime']) -
@@ -281,34 +274,54 @@ class AjaxShowJobs extends \FO_Plugin
         $jobArr['jobQueue'][$key]['isReady'] = ($singleJobQueue['jq_end_bits'] ==
           1);
 
-        switch ($singleJobQueue['jq_type']) {
-          case 'readmeoss':
-            $jobArr['jobQueue'][$key]['download'] = "ReadMeOss";
-            break;
-          case 'spdx2':
-            $jobArr['jobQueue'][$key]['download'] = "SPDX2 report";
-            break;
-          case 'spdx2tv':
-            $jobArr['jobQueue'][$key]['download'] = "SPDX2 tag/value report";
-            break;
-          case 'spdx2csv':
-            $jobArr['jobQueue'][$key]['download'] = "SPDX2 CSV report";
-            break;
-          case 'dep5':
-            $jobArr['jobQueue'][$key]['download'] = "DEP5 copyright file";
-            break;
-          case 'reportImport':
-            $jobArr['jobQueue'][$key]['download'] = "uploaded SPDX2 report";
-            break;
-          case 'unifiedreport':
-            $jobArr['jobQueue'][$key]['download'] = "Unified Report";
-            break;
-          case 'clixml':
-            $jobArr['jobQueue'][$key]['download'] = "Clixml Report";
-            break;
-          default:
-            $jobArr['jobQueue'][$key]['download'] = "";
+        $reportName = "";
+        if ($this->showJobsDao->isJobIdPresentInReportGen($singleJobQueue['jq_job_fk'])) {
+          switch ($singleJobQueue['jq_type']) {
+            case 'readmeoss':
+              $reportName = "ReadMeOss";
+              break;
+            case 'spdx2':
+              $reportName = "SPDX2 report";
+              break;
+            case 'spdx2tv':
+              $reportName = "SPDX2 tag/value report";
+              break;
+            case 'spdx2csv':
+              $reportName = "SPDX2 CSV report";
+              break;
+            case 'spdx3jsonld':
+              $reportName = "SPDX3 JSON-LD report";
+              break;
+            case 'spdx3json':
+              $reportName = "SPDX3 JSON report";
+              break;
+            case 'spdx3rdf':
+              $reportName = "SPDX3 RDF report";
+              break;
+            case 'spdx3tv':
+              $reportName = "SPDX3 tag/value report";
+              break;
+            case 'dep5':
+              $reportName = "DEP5 copyright file";
+              break;
+            case 'reportImport':
+              $reportName = "uploaded SPDX2 report";
+              break;
+            case 'unifiedreport':
+              $reportName = "Unified Report";
+              break;
+            case 'clixml':
+              $reportName = "Clixml Report";
+              break;
+            case 'cyclonedx':
+              $reportName = "CycloneDX json Report";
+              break;
+            case 'decisionexporter':
+              $reportName = "FOSSology Decisions";
+              break;
+          }
         }
+        $jobArr['jobQueue'][$key]['download'] = $reportName;
       }
       if (! empty($jobs['upload'])) {
         $uploadArr = array(
@@ -430,7 +443,7 @@ class AjaxShowJobs extends \FO_Plugin
 
     $pagination = ($totalPages > 1 ? MenuPage($page, $totalPages, $uri) : "");
 
-    $showJobData = $this->getShowJobsForEachJob($jobsInfo);
+    $showJobData = $this->getShowJobsForEachJob($jobsInfo, false);
     return new JsonResponse(
       array(
         'showJobsData' => $showJobData,

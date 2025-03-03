@@ -1,20 +1,10 @@
 <?php
 /*
-Copyright (C) 2015, Siemens AG
+ SPDX-FileCopyrightText: © 2015 Siemens AG
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-version 2 as published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ SPDX-License-Identifier: GPL-2.0-only
 */
+
 
 namespace Fossology\Lib\Util;
 
@@ -48,5 +38,29 @@ class StringOperation
     // 0x7F - 0x9F.
     return preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/u', $replace,
       $input);
+  }
+
+  /**
+   * Polyfill for PHP8's str_starts_with
+   * https://www.php.net/manual/en/function.str-starts-with.php
+   * @param string $haystack String to search in
+   * @param string $needle   String to search for
+   * @return bool True if haystack starts with needle.
+   */
+  public static function stringStartsWith($haystack, $needle)
+  {
+    return strncmp($haystack, $needle, strlen($needle)) === 0;
+  }
+
+  /**
+   * Polyfill for PHP8's str_ends_with
+   * https://www.php.net/manual/en/function.str-ends-with.php
+   * @param string $haystack String to search in
+   * @param string $needle   String to search for
+   * @return bool True if haystack ends with needle.
+   */
+  public static function stringEndsWith($haystack, $needle)
+  {
+    return substr_compare($haystack, $needle, -strlen($needle)) === 0;
   }
 }

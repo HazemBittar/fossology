@@ -1,21 +1,10 @@
 <?php
-/***************************************************************
- * Copyright (C) 2020 Siemens AG
- * Author: Gaurav Mishra <mishra.gaurav@siemens.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ***************************************************************/
+/*
+ SPDX-FileCopyrightText: © 2020 Siemens AG
+ Author: Gaurav Mishra <mishra.gaurav@siemens.com>
+
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 /**
  * @file
  * @brief Tests for UploadSummary model
@@ -50,7 +39,11 @@ class UploadSummaryTest extends \PHPUnit\Framework\TestCase
       "filesToBeCleared"        => 0,
       "filesCleared"            => 25,
       "clearingStatus"          => "Closed",
-      "copyrightCount"          => 10
+      "copyrightCount"          => 10,
+      "fileCount"               => 25,
+      "noScannerLicenseFoundCount" => 0,
+      "scannerUniqueLicenseCount" => 0,
+      'concludedNoLicenseFoundCount' => 0
     ];
 
     $actual = new UploadSummary();
@@ -66,6 +59,10 @@ class UploadSummaryTest extends \PHPUnit\Framework\TestCase
     $actual->setFilesCleared(25);
     $actual->setClearingStatus(UploadStatus::CLOSED);
     $actual->setCopyrightCount(10);
+    $actual->setFileCount(25);
+    $actual->setNoScannerLicenseFoundCount(0);
+    $actual->setScannerUniqueLicenseCount(0);
+    $actual->setConcludedNoLicenseFoundCount(0);
 
     $this->assertEquals($expected, $actual->getArray());
   }

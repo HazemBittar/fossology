@@ -1,21 +1,9 @@
 <?php
-/*****************************************************************************
- * SPDX-License-Identifier: GPL-2.0
- * SPDX-FileCopyrightText: 2021 Sarita Singh <saritasingh.0425@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ****************************************************************************/
+/*
+ SPDX-FileCopyrightText: © 2021 Sarita Singh <saritasingh.0425@gmail.com>
+
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 namespace Fossology\Scancode\Ui;
 
@@ -26,7 +14,8 @@ class ScancodesAgentPlugin extends AgentPlugin
 {
   const SCAN_FLAG = '-';
 
-  public function __construct() {
+  public function __construct()
+  {
     $this->Name = "agent_scancode";
     $this->Title =  _("Scancode Toolkit");
     $this->AgentName = "scancode";
@@ -66,7 +55,7 @@ class ScancodesAgentPlugin extends AgentPlugin
    *
    * @param int $jobId  schedule Job Id which has to add
    * @param int $uploadId     Uploaded pfile Id
-   * @param string $errorMsg  Erraor message which has to be dispalyed
+   * @param string $errorMsg  Error message which has to be displayed
    * @param Request $request  Session request in html
    * @return int  $jobQueueId jq_pk of scheduled jobqueue or 0 if not scheduled
    */
@@ -74,9 +63,27 @@ class ScancodesAgentPlugin extends AgentPlugin
   {
     $dependencies = array();
     $flags = $request->get('scancodeFlags') ?: array();
+    $unpackArgs = intval($request->get('scm', 0)) == 1 ? 'I' : '';
+    $args = $this->getScanCodeArgs($flags, $unpackArgs);
+    if ($args === null) {
+      return 0;
+    }
+    if (!empty($unpackArgs)) {
+      $dependencies[] = 'agent_mimetype';
+    }
+    return parent::AgentAdd($jobId, $uploadId, $errorMsg, array_unique($dependencies) , $args);
+  }
+
+  /**
+   * Translate request flags to agent's args string
+   * @param string[] $flags Array of flags
+   * @param string $unpackArgs Unpack agent args
+   * @return null|string NULL if no args created, string otherwise
+   */
+  public function getScanCodeArgs($flags, $unpackArgs)
+  {
     $scanMode = '';
-    foreach ($flags as $flag)
-    {
+    foreach ($flags as $flag) {
       switch ($flag)
       {
         case "license":
@@ -93,18 +100,13 @@ class ScancodesAgentPlugin extends AgentPlugin
           break;
       }
     }
-    if (empty($scanMode))
-    {
-      return 0;
+    if (empty($scanMode)) {
+      return null;
     }
-    $unpackArgs = intval(@$_POST['scm']) == 1 ? 'I' : '';
-    if (!empty($unpackArgs))
-    {
-      $dependencies[] = 'agent_mimetype';
+    if (!empty($unpackArgs)) {
       $scanMode .= $unpackArgs;
     }
-    $args = self::SCAN_FLAG.$scanMode;
-    return parent::AgentAdd($jobId, $uploadId, $errorMsg, array_unique($dependencies) , $args);
+    return self::SCAN_FLAG . $scanMode;
   }
 
   /**

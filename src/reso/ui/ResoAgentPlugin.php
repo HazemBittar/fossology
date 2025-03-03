@@ -1,22 +1,10 @@
 <?php
-/**
- * SPDX-License-Identifier: GPL-2.0
- * SPDX-FileCopyrightText: Copyright (c) 2021 Orange
- * Author: Bartłomiej Dróżdż <bartlomiej.drozdz@orange.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- */
+/*
+ SPDX-FileCopyrightText: © 2021 Orange
+ Author: Bartłomiej Dróżdż <bartlomiej.drozdz@orange.com>
+
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 use Fossology\Lib\Plugin\AgentPlugin;
 
@@ -26,10 +14,13 @@ use Fossology\Lib\Plugin\AgentPlugin;
  */
 class ResoAgentPlugin extends AgentPlugin
 {
+  /** @var resoDesc */
+  private $resoDesc = "REUSE.Software agent marks licensed files with a license found in the .license files (outside of the licensed files), Note: forces *Ojo License Analysis*";
+
   public function __construct()
   {
     $this->Name = "agent_reso";
-    $this->Title =  ("REUSE.Software Analysis (forces *Ojo License Analysis*)");
+    $this->Title =  ("REUSE.Software Analysis <img src=\"images/info_16.png\" data-toggle=\"tooltip\" title=\"".$this->resoDesc."\" class=\"info-bullet\"/>");
     $this->AgentName = "reso";
 
     parent::__construct();
@@ -48,9 +39,20 @@ class ResoAgentPlugin extends AgentPlugin
    * @copydoc Fossology\Lib\Plugin\AgentPlugin::AgentAdd()
    * @see \Fossology\Lib\Plugin\AgentPlugin::AgentAdd()
    */
-  public function AgentAdd($jobId, $uploadId, &$errorMsg, $dependencies=array(), $arguments=null)
+  public function AgentAdd($jobId, $uploadId, &$errorMsg, $dependencies=[],
+      $arguments=null, $request=null, $unpackArgs=null)
   {
-    $dependencies[] = "ojo";
+    if ($request != null) {
+      $copyrightAgentScheduled = intval($request->get("Check_agent_copyright",
+              0)) == 1;
+    } else {
+      $copyrightAgentScheduled = GetParm("Check_agent_copyright",
+              PARM_INTEGER) == 1;
+    }
+    $dependencies[] = "agent_ojo";
+    if ($copyrightAgentScheduled) {
+      $dependencies[] = "agent_copyright";
+    }
     if ($this->AgentHasResults($uploadId) == 1) {
       return 0;
     }
@@ -60,7 +62,8 @@ class ResoAgentPlugin extends AgentPlugin
       return $jobQueueId;
     }
 
-    return $this->doAgentAdd($jobId, $uploadId, $errorMsg, array("agent_ojo"),$uploadId);
+    return $this->doAgentAdd($jobId, $uploadId, $errorMsg, $dependencies,
+        $uploadId, null, $request);
   }
 
   /**

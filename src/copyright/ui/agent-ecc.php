@@ -1,20 +1,9 @@
 <?php
-/***********************************************************
- Copyright (C) 2014-2015, Siemens AG
+/*
+ SPDX-FileCopyrightText: © 2014-2015 Siemens AG
 
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- version 2 as published by the Free Software Foundation.
-
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License along
- with this program; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-***********************************************************/
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 use Fossology\Lib\Plugin\AgentPlugin;
 
@@ -24,9 +13,13 @@ use Fossology\Lib\Plugin\AgentPlugin;
  */
 class EccAgentPlugin extends AgentPlugin
 {
-  public function __construct() {
+  /** @var ECCDesc */
+  private $ECCDesc = "Performs file scanning to find text fragments that could be relevant for export control. Note: More keywords related to export control can be included using the configuration file.";
+
+  public function __construct()
+  {
     $this->Name = "agent_ecc";
-    $this->Title = _("ECC Analysis, scanning for text fragments potentially relevant for export control");
+    $this->Title = _("ECC Analysis <img src=\"images/info_16.png\" data-toggle=\"tooltip\" title=\"".$this->ECCDesc."\" class=\"info-bullet\"/>");
     $this->AgentName = "ecc";
 
     parent::__construct();
@@ -45,9 +38,14 @@ class EccAgentPlugin extends AgentPlugin
    * @copydoc Fossology\Lib\Plugin\AgentPlugin::AgentAdd()
    * @see \Fossology\Lib\Plugin\AgentPlugin::AgentAdd()
    */
-  public function AgentAdd($jobId, $uploadId, &$errorMsg, $dependencies=array(), $arguments=null)
+  public function AgentAdd($jobId, $uploadId, &$errorMsg, $dependencies=[],
+     $arguments=null, $request=null, $unpackArgs=null)
   {
-    $unpackArgs = intval(@$_POST['scm']) == 1 ? '-I' : '';
+    if ($request != null && !is_array($request)) {
+      $unpackArgs = intval($request->get('scm', 0)) == 1 ? '-I' : '';
+    } else {
+      $unpackArgs = intval(@$_POST['scm']) == 1 ? '-I' : '';
+    }
     if ($this->AgentHasResults($uploadId) == 1) {
       return 0;
     }
@@ -59,9 +57,9 @@ class EccAgentPlugin extends AgentPlugin
 
     $args = $unpackArgs;
     if (!empty($unpackArgs)) {
-      return $this->doAgentAdd($jobId, $uploadId, $errorMsg, array("agent_mimetype"),$uploadId,$args);
+      return $this->doAgentAdd($jobId, $uploadId, $errorMsg, array("agent_mimetype"),$uploadId,$args,$request);
     } else {
-      return $this->doAgentAdd($jobId, $uploadId, $errorMsg, array("agent_adj2nest"), $uploadId);
+      return $this->doAgentAdd($jobId, $uploadId, $errorMsg, array("agent_adj2nest"), $uploadId, null, $request);
     }
   }
 

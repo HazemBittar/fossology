@@ -1,26 +1,14 @@
 <?php
-/***************************************************************
-Copyright (C) 2017,2020 Siemens AG
+/*
+ SPDX-FileCopyrightText: © 2017, 2020 Siemens AG
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-version 2 as published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ***************************************************************/
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 /**
  * @file
  * @brief Upload model
  */
 namespace Fossology\UI\Api\Models;
-
 /**
  * @class Upload
  * @brief Model class to hold Upload info
@@ -63,6 +51,16 @@ class Upload
    */
   private $assignee;
   /**
+   * @var string $assigneeDate
+   * Date when a user was assigned to the upload.
+   */
+  private $assigneeDate;
+  /**
+   * @var string $closingDate
+   * Date when the upload was closed or rejected.
+   */
+  private $closingDate;
+  /**
    * @var Hash $hash
    * Hash information of the upload
    */
@@ -88,6 +86,8 @@ class Upload
     $this->uploadName = $uploadName;
     $this->uploadDate = $uploadDate;
     $this->assignee = $assignee == 1 ? null : intval($assignee);
+    $this->assigneeDate = null;
+    $this->closingDate = null;
     $this->hash = $hash;
   }
 
@@ -95,26 +95,63 @@ class Upload
    * Get current upload in JSON representation
    * @return string
    */
-  public function getJSON()
+  public function getJSON($version=ApiVersion::V1)
   {
-    return json_encode($this->getArray());
+    return json_encode($this->getArray($version));
   }
 
   /**
    * Get the upload element as an associative array
    * @return array
    */
-  public function getArray()
+  public function getArray($version=ApiVersion::V1)
   {
-    return [
-      "folderid"    => $this->folderId,
-      "foldername"  => $this->folderName,
-      "id"          => $this->uploadId,
-      "description" => $this->description,
-      "uploadname"  => $this->uploadName,
-      "uploaddate"  => $this->uploadDate,
-      "assignee"    => $this->assignee,
-      "hash"        => $this->hash->getArray()
-    ];
+    if ($version==ApiVersion::V2) {
+      return [
+        "folderId"    => $this->folderId,
+        "folderName"  => $this->folderName,
+        "id"          => $this->uploadId,
+        "description" => $this->description,
+        "uploadName"  => $this->uploadName,
+        "uploadDate"  => $this->uploadDate,
+        "assignee"    => $this->assignee,
+        "assigneeDate" => $this->assigneeDate,
+        "closingDate" => $this->closingDate,
+        "hash"        => $this->hash->getArray()
+      ];
+    } else {
+      return [
+        "folderid"    => $this->folderId,
+        "foldername"  => $this->folderName,
+        "id"          => $this->uploadId,
+        "description" => $this->description,
+        "uploadname"  => $this->uploadName,
+        "uploaddate"  => $this->uploadDate,
+        "assignee"    => $this->assignee,
+        "assigneeDate" => $this->assigneeDate,
+        "closingDate" => $this->closingDate,
+        "hash"        => $this->hash->getArray()
+      ];
+    }
+  }
+
+  /**
+   * @param string|null $assigneeDate
+   * @return Upload
+   */
+  public function setAssigneeDate(?string $assigneeDate): Upload
+  {
+    $this->assigneeDate = $assigneeDate;
+    return $this;
+  }
+
+  /**
+   * @param string|null $closingDate
+   * @return Upload
+   */
+  public function setClosingDate(?string $closingDate): Upload
+  {
+    $this->closingDate = $closingDate;
+    return $this;
   }
 }

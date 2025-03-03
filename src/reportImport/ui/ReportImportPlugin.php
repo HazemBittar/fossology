@@ -1,19 +1,8 @@
 <?php
 /*
-  Copyright (C) 2014-2016 Siemens AG
+ SPDX-FileCopyrightText: © 2014-2016 Siemens AG
 
-  This program is free software; you can redistribute it and/or
-  modify it under the terms of the GNU General Public License
-  version 2 as published by the Free Software Foundation.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License along
-  with this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ SPDX-License-Identifier: GPL-2.0-only
 */
 
 use Fossology\Lib\Auth\Auth;
@@ -55,7 +44,7 @@ class ReportImportPlugin extends DefaultPlugin
     $uploadId = intval(GetArrayVal("uploadselect", $_POST));
     if (empty($uploadId) ||
         !array_key_exists('report',$_FILES) ||
-        sizeof($_FILES['report']['name']) != 1)
+        empty($_FILES['report']['size']))
     {
       return $this->showUiToChoose();
     }
@@ -112,7 +101,7 @@ class ReportImportPlugin extends DefaultPlugin
     return $this->render('ReportImportPlugin.html.twig', $this->mergeWithDefault($vars));
   }
 
-  protected function runImport($uploadId, $report, $request)
+  public function runImport($uploadId, $report, $request)
   {
     $reportImportAgent = plugin_find('agent_reportImport');
 

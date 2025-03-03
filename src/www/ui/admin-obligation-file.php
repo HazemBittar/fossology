@@ -1,23 +1,11 @@
 <?php
-/***********************************************************
- Copyright (C) 2008-2014 Hewlett-Packard Development Company, L.P.
- Copyright (C) 2015-2017, Siemens AG
+/*
+ SPDX-FileCopyrightText: © 2008-2014 Hewlett-Packard Development Company, L.P.
+ SPDX-FileCopyrightText: © 2015-2017 Siemens AG
 
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- version 2 as published by the Free Software Foundation.
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License along
- with this program; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ***********************************************************/
-
-use Fossology\Lib\BusinessRules\LicenseMap;
 use Fossology\Lib\BusinessRules\ObligationMap;
 use Fossology\Lib\Db\DbManager;
 use Fossology\Lib\Util\StringOperation;
@@ -501,13 +489,7 @@ class admin_obligation_file extends FO_Plugin
    */
   function Deldb()
   {
-    $stmt = __METHOD__.'.delob';
-    $sql = "DELETE FROM obligation_ref WHERE ob_pk=$1";
-    $this->dbManager->prepare($stmt,$sql);
-    $res = $this->dbManager->execute($stmt,array($_POST['ob_pk']));
-
-    $this->obligationMap->unassociateLicenseFromObligation($_POST['ob_pk']);
-    $this->obligationMap->unassociateLicenseFromObligation($_POST['ob_pk'], 0, true);
+    $this->obligationMap->deleteObligation($_POST['ob_pk']);
 
     return "<p>Obligation has been deleted.</p>";
   }

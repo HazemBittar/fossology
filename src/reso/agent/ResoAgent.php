@@ -1,23 +1,11 @@
 <?php
-/**
- * SPDX-License-Identifier: GPL-2.0
- * SPDX-FileCopyrightText: Copyright (c) 2021 Orange
- * Author: Bartłomiej Dróżdż <bartlomiej.drozdz@orange.com>
- * Author: Piotr Pszczoła <piotr.pszczola@orange.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- */
+/*
+ SPDX-FileCopyrightText: © 2021 Orange
+ Author: Bartłomiej Dróżdż <bartlomiej.drozdz@orange.com>
+ Author: Piotr Pszczoła <piotr.pszczola@orange.com>
+
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 namespace Fossology\Reso;
 
@@ -81,6 +69,7 @@ class ResoAgent extends Agent
     }
     $linkedFiles = $this->associateBaseFile($reSoUploadFiles, $uploadTreeTableName);
     $this->copyOjoFindings($linkedFiles,$uploadId);
+    $this->copyCopyrightFindings($linkedFiles,$uploadId);
 
     return true;
   }
@@ -179,6 +168,52 @@ class ResoAgent extends Agent
 
         $this->dbManager->prepare($Istmt, $Isql);
         $Ires = $this->dbManager->execute($Istmt,$insertParam);
+      }
+    }
+    return true;
+  }
+
+  /**
+   * @brief Copy copyright from .license file to base file
+   * @param array[][] $linkedFiles - multi-dimensional array with copyright holding files with associated base files
+   * @param int $uploadId
+   * @return true on success, Error on failure
+   */
+  protected function copyCopyrightFindings($linkedFiles,$uploadId)
+  {
+    //find agentId used for specific upload
+    $latestCopyrightAgent = $this->agentDao->agentARSList("copyright_ars",$uploadId);
+    $resoAgentId = $this->agentDao->getCurrentAgentId("reso");
+    if (empty($latestCopyrightAgent)) {
+      return;
+    }
+
+    foreach ($linkedFiles as $file) {
+      $this->heartbeat(1);
+      $param = array();
+      $insertParam = array();
+      $stmt = __METHOD__ .'readCopyrightFindings';
+      $sql = "SELECT * FROM copyright WHERE pfile_fk =$1 AND agent_fk=$2";
+      $param[] = $file['pfile_fk'];
+      $param[] = $latestCopyrightAgent[0]['agent_fk'];
+
+      $this->dbManager->prepare($stmt, $sql);
+      $res = $this->dbManager->execute($stmt,$param);
+      while ($row=$this->dbManager->fetchArray($res)) {
+        $copytightrec = $this->dbManager->getSingleRow("SELECT * FROM copyright WHERE agent_fk=$1 AND pfile_fk=$2 AND hash=md5($3)", array($resoAgentId, $file['assoc_file'][0]['pfile_fk'], $row['content']), __METHOD__.'checkExistingCopyright');
+        if (empty($copytightrec)) {
+          $insertParam = array();
+          $Insertstmt = __METHOD__ .'insertCopyrightFindingsReso';
+          $Insertsql = "INSERT INTO copyright(agent_fk, pfile_fk, content, hash, type, copy_startbyte, copy_endbyte) VALUES ($1, $2, $3, md5($3), $4, $5, $6)";
+          $insertParam[] = $resoAgentId;
+          $insertParam[] = $file['assoc_file'][0]['pfile_fk'];
+          $insertParam[] = $row['content'];
+          $insertParam[] = $row['type'];
+          $insertParam[] = -1;
+          $insertParam[] = -1;
+          $this->dbManager->prepare($Insertstmt, $Insertsql);
+          $Insertresult = $this->dbManager->execute($Insertstmt,$insertParam);
+        }
       }
     }
     return true;

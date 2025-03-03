@@ -1,20 +1,9 @@
-/********************************************************
- Copyright (C) 2007-2013 Hewlett-Packard Development Company, L.P.
- Copyright (C) 2015-2019 Siemens AG
+/*
+ SPDX-FileCopyrightText: © 2007-2013 Hewlett-Packard Development Company, L.P.
+ SPDX-FileCopyrightText: © 2015-2019 Siemens AG
 
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- version 2 as published by the Free Software Foundation.
-
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License along
- with this program; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ********************************************************/
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 /**
  * \file delagent.c
@@ -164,7 +153,6 @@ int main (int argc, char *argv[])
   int  c;
   int  listProj=0, listFolder=0;
   long delUpload=0, delFolder=0, delFolderParent=0;
-  int  scheduler=0; /* should it run from the scheduler? */
   int  gotArg=0;
   char *agentDesc = "Deletes upload.  Other list/delete options available from the command line.";
   char *commitHash;
@@ -213,7 +201,7 @@ int main (int argc, char *argv[])
         gotArg=1;
         break;
       case 's':
-        scheduler=1;
+        Scheduler=1;
         gotArg=1;
         break;
       case 'T':
@@ -249,7 +237,7 @@ int main (int argc, char *argv[])
     exitNow(-1);
   }
 
-  if (scheduler != 1)
+  if (Scheduler != 1)
   {
     if (0 != authentication(userName, password, &userId, &userPerm))
     {

@@ -1,20 +1,10 @@
 /*
-Author: Daniele Fognini, Andreas Wuerl
-Copyright (C) 2013-2017, Siemens AG
+ Author: Daniele Fognini, Andreas Wuerl
+ SPDX-FileCopyrightText: © 2013-2017 Siemens AG
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-version 2 as published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ SPDX-License-Identifier: GPL-2.0-only
 */
+
 #include <stdlib.h>
 #include <stdarg.h>
 #include <libfocunit.h>
@@ -87,7 +77,7 @@ void _assertLicIds(const GArray* lics, unsigned int n, ...) {
 
   va_start(args, n);
 
-  for (int i=0; i<n; i++) {
+  for (unsigned int i=0; i<n; i++) {
     int expectedLicId = va_arg(args, int);
     CU_ASSERT_EQUAL(license_index(lics, i)->refId, expectedLicId);
   }

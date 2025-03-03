@@ -1,19 +1,8 @@
 <?php
 /*
-Copyright (C) 2015,2019 Siemens AG
+ SPDX-FileCopyrightText: © 2015, 2019 Siemens AG
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-version 2 as published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ SPDX-License-Identifier: GPL-2.0-only
 */
 
 namespace Fossology\Lib\Test;
@@ -89,12 +78,29 @@ abstract class TestAbstractDb
       'rf_GPLv3compatible'=> '"rf_GPLv3compatible"',
       'rf_Fedora' => '"rf_Fedora"'
       );
+    $keysToReplicate = [
+      "rf_spdx_id" => "rf_shortname",
+    ];
+    $keysToRemove = [
+      "rf_spdx_compatible"
+    ];
 
     /** import licenseRef.json */
     $LIBEXECDIR = $this->dirnameRec(__FILE__, 5) . '/install/db';
     $jsonData = json_decode(file_get_contents("$LIBEXECDIR/licenseRef.json"), true);
     $statementName = __METHOD__.'.insertInToLicenseRef';
     foreach ($jsonData as $licenseArrayKey => $licenseArray) {
+      foreach ($keysToReplicate as $duplicateKey => $originalKey) {
+        if ($licenseArray['rf_spdx_compatible'] == 't') {
+          $licenseArray[$duplicateKey] = $licenseArray[$originalKey];
+        } else {
+          $licenseArray[$duplicateKey] = "";
+        }
+      }
+      foreach ($keysToRemove as $key) {
+        unset($licenseArray[$key]);
+      }
+      ksort($licenseArray);
       $arrayKeys = array_keys($licenseArray);
       $arrayValues = array_values($licenseArray);
       $keys = strtr(implode(",", $arrayKeys), $keysToBeChanged);

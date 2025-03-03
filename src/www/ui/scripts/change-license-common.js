@@ -1,21 +1,9 @@
 /*
- Copyright (C) 2014-2020, Siemens AG
- Authors: Daniele Fognini, Johannes Najjar, Steffen Weber,
-          Andreas J. Reichel, Shaheem Azmal M MD
+ SPDX-FileCopyrightText: © 2014-2020 Siemens AG
+ Authors: Daniele Fognini, Johannes Najjar, Steffen Weber, Andreas J. Reichel, Shaheem Azmal M MD
 
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- version 2 as published by the Free Software Foundation.
-
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License along
- with this program; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- */
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 //! This only works if this number stays hard coded in licenseref.sql
 var magicNumberNoLicenseFoundInt = 507;
@@ -157,6 +145,7 @@ function scheduleBulkScanCommon(resultEntity, callbackSuccess) {
     "bulkScope": $('#bulkScope').val(),
     "uploadTreeId": $('#uploadTreeId').val(),
     "forceDecision": $('#forceDecision').is(':checked')?1:0,
+    "scanOnlyFindings": $('#scanOnlyFindings').is(':checked') ? 1 : 0,
     "ignoreIrre": $('#bulkIgnoreIrre').is(':checked') ? 1 : 0,
     "delimiters": $("#delimdrop").val()
   };
@@ -189,7 +178,7 @@ function performPostRequestCommon(resultEntity, callbackSuccess) {
     type: "POST",
     url: "?mod=change-license-processPost",
     data: data,
-    success: function (data) { scheduledBootstrapSuccess(data, resultEntity, callbackSuccess, closeUserModal); },
+    success: function (data) { scheduledBootstrapSuccess(data, resultEntity, callbackSuccess); },
     error: function(responseobject) { bootstrapAlertError(responseobject, resultEntity); }
   });
 
@@ -276,8 +265,14 @@ function openTextModel(uploadTreeId, licenseId, what, type) {
     idLicUploadTree = uploadTreeId+','+licenseId;
     whatCol = what;
     $(refTextId).val(htmlDecode(clearingsForSingleFile));
+    if (what == 3 || what == "acknowledgement") {
+      createAcknowledgementDropDown($("#textModalComment"), $("#referenceText"));
+    } else {
+      $("#licenseAcknowledgementDropDown-text").hide();
+      $("#licenseAcknowledgementDropDown").next(".select2-container").hide();
+    }
     if (what == 4 || what == "comment") {
-      createDropDown($("#textModal > form > div"), $("#referenceText"));
+      createDropDown($("#textModalComment"), $("#referenceText"));
     } else {
       $("#licenseStdCommentDropDown-text").hide();
       $("#licenseStdCommentDropDown").next(".select2-container").hide();
@@ -287,8 +282,14 @@ function openTextModel(uploadTreeId, licenseId, what, type) {
     $(refTextId).val(htmlDecode($("#"+licenseId+what+type).attr('title')));
     whatCol = what;
     whatLicId = licenseId;
+    if (what == 3 || what == "acknowledgement") {
+      createAcknowledgementDropDown($("#textModalComment"), $("#referenceText"));
+    } else {
+      $("#licenseAcknowledgementDropDown-text").hide();
+      $("#licenseAcknowledgementDropDown").next(".select2-container").hide();
+    }
     if (what == 4 || what == "comment") {
-      createDropDown($("#textModal > form > div"), $("#referenceText"));
+      createDropDown($("#textModalComment"), $("#referenceText"));
     } else {
       $("#licenseStdCommentDropDown-text").hide();
       $("#licenseStdCommentDropDown").next(".select2-container").hide();
@@ -461,7 +462,8 @@ function createDropDown(element, textBox) {
   }
   dropDown = $("<select />", {
     "id": "licenseStdCommentDropDown",
-    "class": "ui-render-select2"
+    "class": "ui-render-select2",
+    "style": "width:100%"
   }).on("select2:select", function(e) {
     let id = e.params.data.id;
     getStdLicenseComments(id, function (comment) {
@@ -512,6 +514,70 @@ function getStdLicenseComments(scope, callback) {
   });
 }
 
+function createAcknowledgementDropDown(element, textBox) {
+  let dropDown = null;
+  if ($("#licenseAcknowledgementDropDown").length) {
+    // The dropdown already exists
+    $("#licenseAcknowledgementDropDown-text").show();
+    dropDown = $("#licenseAcknowledgementDropDown");
+    dropDown.val(null).trigger('change');
+    dropDown.next(".select2-container").show();
+    return;
+  }
+  dropDown = $("<select />", {
+    "id": "licenseAcknowledgementDropDown",
+    "class": "ui-render-select2",
+    "style": "width:100%"
+  }).on("select2:select", function(e) {
+    let id = e.params.data.id;
+    getLicenseAcknowledgements(id, function (acknowledgement) {
+      if (acknowledgement.hasOwnProperty("error")) {
+        console.log("Error while fetching acknowledgements: " + acknowledgement.error);
+      } else {
+        textBox.val(textBox.val() + "\n" + acknowledgement.acknowledgement);
+      }
+    });
+  });
+  dropDown.insertBefore(element);
+  $("<p />", {
+    "id": "licenseAcknowledgementDropDown-text"
+  }).html("Select license acknowledgements:").insertBefore(dropDown);
+  getLicenseAcknowledgements("visible", function (data) {
+    // Add a placeholder for select2
+    data.splice(0, 0, {
+      "la_pk": -1,
+      "name": ""});
+    dropDown.select2({
+      selectOnClose: true,
+      dropdownParent: textModal,
+      placeholder: {
+        id: '-1',
+        text: "Select a acknowledgement"
+      },
+      data: $.map(data, function(obj) {
+        return {
+          "id": obj.la_pk,
+          "text": obj.name
+        };
+      })
+    });
+  });
+}
+
+function getLicenseAcknowledgements(scope, callback) {
+  $.ajax({
+    type: "GET",
+    url: "?mod=ajax_license_acknowledgements",
+    data: {"scope": scope},
+    success: function(data) {
+      callback(data);
+    },
+    error: function(data) {
+      callback(data.error);
+    }
+  });
+}
+
 function escapeRegExp(string){
   string = string.replace(/([.*+?^${}()|\[\]\/\\])/g, "\\$1");
   return string.replace(/\\\\([abfnrtv])/g, '\\$1'); // Preserve default escape sequences
@@ -531,17 +597,18 @@ function bootstrapAlertError(responseobject, resultEntity) {
   resultEntity.show();
 }
 
-function scheduledBootstrapSuccess (data, resultEntity, callbackSuccess, callbackCloseModal) {
+function scheduledBootstrapSuccess (data, resultEntity, callbackSuccess) {
   var jqPk = data.jqid;
   var errorSpan = resultEntity.find("span:first");
   if (jqPk) {
+    resultEntity.removeClass("alert-danger").addClass("alert-success");
     errorSpan.html("scan scheduled as " + linkToJob(jqPk));
     if (callbackSuccess) {
       resultEntity.show();
       queueUpdateCheck(jqPk, callbackSuccess);
     }
-    callbackCloseModal();
   } else {
+    resultEntity.removeClass("alert-success").addClass("alert-danger");
     errorSpan.text("bad response from server");
   }
   resultEntity.show();

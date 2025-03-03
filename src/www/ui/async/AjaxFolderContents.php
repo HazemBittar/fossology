@@ -1,20 +1,9 @@
 <?php
-/***********************************************************
- * Copyright (C) 2015,2022 Siemens AG
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ***********************************************************/
+/*
+ SPDX-FileCopyrightText: © 2015, 2022 Siemens AG
+
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 namespace Fossology\UI\Ajax;
 
@@ -44,7 +33,7 @@ class AjaxFolderContents extends DefaultPlugin
     $this->folderDao = $this->getObject('dao.folder');
   }
 
-  protected function handle(Request $request)
+  public function handle(Request $request)
   {
     $folderId = intval($request->get('folder'));
     $uploadName = $request->get('upload');
@@ -59,12 +48,21 @@ class AjaxFolderContents extends DefaultPlugin
     $childUploads = $this->folderDao->getFolderChildUploads($folderId, Auth::getGroupId());
     foreach ($childUploads as $upload) {
       $uploadStatus = new UploadStatus();
-      $uploadDate = explode(".",$upload['upload_ts'])[0];
+      $uploadDate = explode(".", $upload['upload_ts'])[0];
       $uploadStatus = " (" . $uploadStatus->getTypeName($upload['status_fk']) . ")";
       $results[$upload['foldercontents_pk']] = $upload['upload_filename'] . _(" from ") . Convert2BrowserTime($uploadDate) . $uploadStatus;
     }
 
     if (!$request->get('removable')) {
+      if ($request->get('fromRest')) {
+        return array_map(function($key, $value) {
+          return array(
+            'id' => $key,
+            'content' => $value,
+            'removable' => false
+          );
+        }, array_keys($results), $results);
+      }
       return new JsonResponse($results);
     }
 
@@ -72,9 +70,21 @@ class AjaxFolderContents extends DefaultPlugin
     foreach ($this->folderDao->getRemovableContents($folderId) as $content) {
       $filterResults[$content] = $results[$content];
     }
+
+    if ($request->get('fromRest')) {
+      return array_map(function ($key, $value) {
+        return array(
+          'id' => $key,
+          'content' => $value,
+          'removable' => true
+        );
+      }, array_keys($filterResults), $filterResults);
+    }
+
     if (empty($filterResults)) {
       $filterResults["-1"] = "No removable content found";
     }
+
     return new JsonResponse($filterResults);
   }
 

@@ -1,19 +1,8 @@
 <?php
 /*
-Copyright (C) 2015, Siemens AG
+ SPDX-FileCopyrightText: © 2015 Siemens AG
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-version 2 as published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ SPDX-License-Identifier: GPL-2.0-only
 */
 
 namespace Fossology\Lib\Dao;
@@ -181,5 +170,53 @@ class UploadPermissionDaoTest extends \PHPUnit\Framework\TestCase
     $this->uploadPermissionDao->setPublicPermission($uploadId, Auth::PERM_READ);
     $accessibilityByPublic = $this->uploadPermissionDao->isAccessible($uploadId, $groupId);
     assertThat($accessibilityByPublic, equalTo(true));
+  }
+  /**
+   * @test
+   * -# Test to check if a user can edit an upload
+   *    UploadPermissionDao::isEditable()
+   * -# Set the user's permission level to PERM_WRITE
+   * -# Check if the user has the correct permission to edit the upload
+   */
+  public function testIsEditable()
+  {
+    $_SESSION[Auth::USER_LEVEL] = Auth::PERM_WRITE;
+    $this->testDb->createPlainTables(array('perm_upload','groups'));
+    $this->testDb->insertData(array('groups','perm_upload'));
+    $this->uploadPermissionDao->insertPermission(2, 3,Auth::PERM_WRITE);
+    $result = $this->uploadPermissionDao->isEditable(2, 3);
+    $this->assertNotNull($result);
+    $this->assertTrue($result);
+  }
+  /**
+   * @test
+   * -# Test to verify that access is granted when the correct permission is set using UploadPermissionDao::isAccessible().
+   * -# Insert a write permission (PERM_WRITE) for a user (user ID: 2) and upload (upload ID: 3).
+   * -# Ensure that the isAccessible() method returns true when the user has write access.
+   */
+  public function testIsAccessibleTrue()
+  {
+    $_SESSION[Auth::USER_LEVEL] = Auth::PERM_WRITE;
+    $this->testDb->createPlainTables(array('perm_upload','groups'));
+    $this->testDb->insertData(array('groups','perm_upload'));
+    $this->uploadPermissionDao->insertPermission(2, 3,Auth::PERM_WRITE);
+    $result = $this->uploadPermissionDao->isAccessible(2, 3);
+    $this->assertNotNull($result);
+    $this->assertTrue($result);
+  }
+  /**
+   * @test
+   * -# Test to verify access permissions for an upload using UploadPermissionDao::isAccessible().
+   * -# Insert a permission with no access (PERM_NONE) for a user (user ID: 2).
+   * -# Ensure that the isAccessible() method correctly returns false when no permission is granted.
+   */
+  public function testIsAccessibleFalse()
+  {
+    $this->testDb->createPlainTables(array('perm_upload','groups'));
+    $this->testDb->insertData(array('groups','perm_upload'));
+    $this->uploadPermissionDao->insertPermission(2, 3,Auth::PERM_NONE);
+    $result = $this->uploadPermissionDao->isAccessible(2, 3);
+    $this->assertNotNull($result);
+    $this->assertFalse($result);
   }
 }

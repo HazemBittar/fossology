@@ -1,20 +1,8 @@
-/*****************************************************************************
- * SPDX-License-Identifier: GPL-2.0
- * SPDX-FileCopyrightText: 2021 Sarita Singh <saritasingh.0425@gmail.com>
- * 
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- *****************************************************************************/
+/*
+ SPDX-FileCopyrightText: © 2021 Sarita Singh <saritasingh.0425@gmail.com>
+
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 #include "scancode_dbhandler.hpp"
 
@@ -226,7 +214,7 @@ void ScancodeDatabaseHandler::insertOrCacheLicenseIdForName(string const& rfShor
  */
 unsigned long ScancodeDatabaseHandler::getCachedLicenseIdForName(string const& rfShortName) const
 {
-  std::unordered_map<string,long>::const_iterator findIterator = licenseRefCache.find(rfShortName);
+  auto findIterator = licenseRefCache.find(rfShortName);
   if (findIterator != licenseRefCache.end())
   {
     return findIterator->second;
@@ -431,7 +419,7 @@ bool ScancodeDatabaseHandler::insertInDatabase(DatabaseEntry& entry) const
 
 /**
  * @brief create tables to save copyright and author informations
- * @return  true on sucessful creation, false otherwise
+ * @return  true on successful creation, false otherwise
  */
 bool ScancodeDatabaseHandler::createTables() const
 {
@@ -456,7 +444,7 @@ bool ScancodeDatabaseHandler::createTables() const
     }
   }
   if (tablesChecked && (failedCounter > 0))
-    LOG_NOTICE("table creation succeded on try %d/%d \n", failedCounter, MAX_TABLE_CREATION_RETRIES);
+    LOG_NOTICE("table creation succeeded on try %d/%d \n", failedCounter, MAX_TABLE_CREATION_RETRIES);
   dbManager.ignoreWarnings(false);
   return tablesChecked;
 }

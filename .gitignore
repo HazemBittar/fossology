@@ -1,5 +1,10 @@
+# SPDX-FileCopyrightText: © Fossology contributors
+
+# SPDX-License-Identifier: FSFAP
 /.idea
+/.phpstorm
 /.vscode
+/.phpstorm
 *iml
 _*.c
 _*.h
@@ -12,6 +17,7 @@ cov.txt
 *Tests-Listing.xml
 *Tests-Results.xml
 VERSION
+VERSIONSTRING
 /.project
 /.cproject
 .settings
@@ -24,8 +30,10 @@ VERSION
 tags
 php.ini
 .cache
+.phan
 
 # compiled or derived files
+compile_commands.json
 install/db/dbcreate
 install/defconf/Db.conf
 install/defconf/fossology.conf
@@ -55,11 +63,22 @@ src/cli/fossupload_status
 src/cli/exportLicenseRefUsingSPDX
 src/clixml/agent/version.php
 src/clixml/agent/clixml
+src/compatibility/agent/compatibility
+src/copyright/agent/ipra
 src/copyright/agent/copyright
 src/copyright/agent/keyword
 src/copyright/agent/fo_unicode_clean
 src/copyright/agent_tests/Functional/copyright
 src/copyright/agent_tests/Unit/test_copyright
+src/copyright/agent_tests/results
+src/decider/agent/decider
+src/decider/agent/version.php
+src/deciderjob/agent/deciderjob
+src/deciderjob/agent/version.php
+src/decisionexporter/agent/decisionexporter
+src/decisionexporter/agent/version.php
+src/decisionimporter/agent/decisionimporter
+src/decisionimporter/agent/version.php
 src/delagent/agent/delagent
 src/demomod/agent/demomod
 src/lib/c/fossconfigTest
@@ -80,6 +99,7 @@ src/mimetype/agent/mimetype
 src/mimetype/agent_tests/Unit/test_mimetype
 src/monk/agent/_squareVisitor.h.gen
 src/monk/agent/monk
+src/monk/agent/monkbulk
 src/monk/agent/monk_cov
 src/monk/agent/monkbulk_cov
 src/monk/agent/squareBuilder
@@ -135,6 +155,7 @@ src/ununpack/agent/departition-sa
 src/ununpack/agent/ununpack-sa
 src/ununpack/agent_tests/Unit/testconf
 src/wget_agent/agent/wget_agent
+src/wget_agent/agent_tests/test_result
 variable.list
 /nbproject/private/
 /src/monk/VERSION-monk
@@ -144,19 +165,23 @@ variable.list
 /src/deciderjob/agent/version.php
 /src/decider/agent/decider
 /src/decider/agent/version.php
+/src/decisionexporter/agent/version.php
+/src/decisionexporter/agent/decisionexporter
 /testReport/
 /src/readmeoss/agent/version.php
 /src/reuser/agent/reuser
 /src/reuser/agent/version.php
-/src/reuser/agent/reuser
 /src/copyright/agent/ecc
 /src/copyright/VERSION-ecc
 /src/copyright/VERSION-keyword
 /src/copyright/VERSION-copyright
-/src/spdx2/agent_tests/Functional/spdx-tools-2.2.2-jar-with-dependencies.jar*
-/src/spdx2/agent/version.php
+/src/copyright/VERSION-ipra
+/src/spdx/agent_tests/Functional/tools-java-*-jar-with-dependencies.jar
+/src/spdx/agent/version.php
+/src/unifiedreport/agent/unifiedreport
 /src/unifiedreport/agent/version.php
-/src/spdx2/agent/spdx2
+/src/spdx/agent/spdx
+/src/spdx/agent/spdx2
 src/reportImport/agent/spdx2Import
 src/reportImport/agent/version.php
 src/reportImport/agent/reportImport
@@ -187,3 +212,13 @@ ubuntu-*
 
 # PHPUnit cache
 .phpunit.result.cache
+*-Xunit.xml
+/phpenv/
+# cmake ignore files
+**/build
+**/build-clang
+cmake-build-release
+cmake-build-debug
+
+#pycache
+**/__pycache__/

@@ -1,14 +1,13 @@
-{# Copyright 2020 Siemens AG
+{# SPDX-FileCopyrightText: © 2020 Siemens AG
 
-   Copying and distribution of this file, with or without modification,
-   are permitted in any medium without royalty provided the copyright notice and this notice are preserved.
-   This file is offered as-is, without any warranty.
+   SPDX-License-Identifier: FSFAP
 #}
 {% extends "include/base.html.twig" %}
 
 {% block content %}
   <table border="0">
     <tr>
+      <td style="padding:3px 10px" id="system_status"></td>
       <th style="padding:3px 10px">{{ 'Scheduler'|trans }}</th>
       <td style="padding:3px 10px" id="scheduler_status"></td>
     </tr>
@@ -59,6 +58,7 @@
               returnval.push(newrow);
             }
             $("#scheduler_status").html(json.scheduler);
+            $("#system_status").html(json.systemLoad);
             return returnval;
           }
         },

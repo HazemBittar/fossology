@@ -1,8 +1,6 @@
-{# Copyright 2014-2015,2018 Siemens AG
+{# SPDX-FileCopyrightText: © 2014-2015, 2018 Siemens AG
 
-   Copying and distribution of this file, with or without modification,
-   are permitted in any medium without royalty provided the copyright notice and this notice are preserved.
-   This file is offered as-is, without any warranty.
+   SPDX-License-Identifier: FSFAP
 #}
 
   <!-- The text Modal -->
@@ -16,6 +14,7 @@
         <!-- Modal body -->
         <div class="modal-body">
           <form name="addOrRemoveText">
+          <div id="textModalComment" style="padding:2px;"></div>
             <div>{{ 'Please enter the text phrase:'|trans }}</div>
             <textarea id="referenceText" class="form-control-sm" style="overflow:auto;width:100%;height:80px;" name="referenceText"></textarea>
           </form>
@@ -133,6 +132,15 @@
                     <label for="forceDecision" class="form-check-label">
                       {{ 'Ignore conflicts'|trans }}
                       <img src="images/info_16.png" data-toggle="tooltip" data-placement="left" title="{{ 'The bulk scan will create a clearing result, if the resulting list of licenses does not show conflicts. A conflict would be two different license ids for example. Imagine Nomos has found “Apache-1.0” and a bulk scan finds a text phrase with Apache-2.0 set, this represents a conflict. Otherwise if Nomos found Apache-2.0 and the bulk scan find a text phrase with “Apache-2.0” set, this is free from conflicts and a clearing result is set. Normally conflicts prevent clearing results. Checking the “ignore conflicts” will set a clearing decision in any case'|trans }}" alt="" class="info-bullet"/></img>
+                    </label>
+                  </div>
+                </div>
+                <div class="col-sm-auto pr-0">
+                  <div class="form-check form-check-inline">
+                    <input type="checkbox" class="form-check-input" id="scanOnlyFindings" name="scanOnlyFindings" checked="checked"/>
+                    <label for="scanOnlyFindings" class="form-check-label">
+                      {{ 'Scan files with findings'|trans }}
+                      <img src="images/info_16.png" data-toggle="tooltip" data-placement="left" title="{{ 'The bulk scan will be executed on the files where there is atleast one license finding'|trans }}" alt="" class="info-bullet"/></img>
                     </label>
                   </div>
                 </div>

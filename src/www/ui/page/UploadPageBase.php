@@ -1,20 +1,9 @@
 <?php
-/***********************************************************
- * Copyright (C) 2015 Siemens AG
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ***********************************************************/
+/*
+ SPDX-FileCopyrightText: © 2015 Siemens AG
+
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 namespace Fossology\UI\Page;
 
@@ -130,7 +119,8 @@ abstract class UploadPageBase extends DefaultPlugin
       $adj2nestDependencies = array(array('name'=>'agent_unpack','args'=>$unpackArgs,AgentPlugin::PRE_JOB_QUEUE=>array('wget_agent')));
     }
     $adj2nestplugin = \plugin_find('agent_adj2nest');
-    $adj2nestplugin->AgentAdd($jobId, $uploadId, $dummy, $adj2nestDependencies, null, (empty($adj2nestDependencies) ? $unpackArgs : ''));
+    $adj2nestplugin->AgentAdd($jobId, $uploadId, $dummy, $adj2nestDependencies,
+        null, null, (empty($adj2nestDependencies) ? $unpackArgs : ''));
 
     $checkedAgents = checkedAgents();
     AgentSchedule($jobId, $uploadId, $checkedAgents);

@@ -1,19 +1,8 @@
-/*********************************************************************
-Copyright (C) 2011 Hewlett-Packard Development Company, L.P.
+/*
+ SPDX-FileCopyrightText: © 2011 Hewlett-Packard Development Company, L.P.
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-version 2 as published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-*********************************************************************/
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 /**
 * @file
@@ -178,7 +167,7 @@ void signal_connect_version()
 void test_scheduler_no_connect()
 {
   int argc = 2;
-  char* argv[] = {"./testlibs", "--config=./scheddata"};
+  char* argv[] = {"./test_clibs", "--config=./scheddata"};
 
   fo_scheduler_connect(&argc, argv, NULL);
 
@@ -210,7 +199,7 @@ void test_scheduler_no_connect()
 void test_scheduler_connect()
 {
   int argc = 2;
-  char* argv[] = {"./testlibs", "--config=./scheddata", "--scheduler_start"};
+  char* argv[] = {"./test_clibs", "--config=./scheddata", "--scheduler_start"};
   char* tmp;
 
   fo_scheduler_connect(&argc, argv, NULL);

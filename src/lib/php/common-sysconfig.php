@@ -1,21 +1,10 @@
 <?php
-/***********************************************************
- Copyright (C) 2011-2015 Hewlett-Packard Development Company, L.P.
- Copyright (C) 2021 Siemens AG
+/*
+ SPDX-FileCopyrightText: © 2011-2015 Hewlett-Packard Development Company, L.P.
+ SPDX-FileCopyrightText: © 2021 Siemens AG
 
- This library is free software; you can redistribute it and/or
- modify it under the terms of the GNU Lesser General Public
- License version 2.1 as published by the Free Software Foundation.
-
- This library is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- Lesser General Public License for more details.
-
- You should have received a copy of the GNU Lesser General Public License
- along with this library; if not, write to the Free Software Foundation, Inc.0
- 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
-***********************************************************/
+ SPDX-License-Identifier: LGPL-2.1-only
+*/
 
 use Fossology\Lib\Auth\Auth;
 
@@ -80,6 +69,7 @@ function ConfigInit($sysconfdir, &$SysConf, $exitOnDbFail=true)
   $PG_CONN = get_pg_conn($sysconfdir, $SysConf, $exitOnDbFail);
 
   populate_from_sysconfig($PG_CONN, $SysConf);
+  return $PG_CONN;
 } // ConfigInit()
 
 /**
@@ -210,71 +200,84 @@ function Populate_sysconfig()
   $valueArray[$variable] = array("'$variable'", "'client-id'", "'$oidcPrompt'",
     strval(CONFIG_TYPE_TEXT), "'OauthSupport'", "2", "'$oidcDesc'", "null", "null");
 
+  $variable = "OidcResourceOwnerId";
+  $oidcPrompt = _('Resource owner id field');
+  $oidcDesc = _('e.g. "email", "upn"<br>Field in token which provides user id. The field <b>should not be empty</b>.');
+  $valueArray[$variable] = array("'$variable'", "'email'", "'$oidcPrompt'",
+    strval(CONFIG_TYPE_TEXT), "'OauthSupport'", "3", "'$oidcDesc'", "null", "null");
+
+  $variable = "OidcTokenType";
+  $oidcPrompt = _('Token to use from provider');
+  $oidcDesc = _('OpenID Connect providers 2 types of tokens, access and id. Which to use for authentication?<br>AzureAD prefers ID token.');
+  $valueArray[$variable] = array("'$variable'", "'A'", "'$oidcPrompt'",
+    strval(CONFIG_TYPE_DROP), "'OauthSupport'", "4", "'$oidcDesc'", "null", "'Access Token{A}|ID Token{I}'");
+
   $variable = "OidcAppId";
   $oidcPrompt = _('OIDC Client Id');
   $oidcDesc = _('e.g. "e0ec21b9f4b21adc76f185962b52bdfc13af134a"<br>Client ID generated while registering your application.');
   $valueArray[$variable] = array("'$variable'", "null", "'$oidcPrompt'",
-    strval(CONFIG_TYPE_TEXT), "'OauthSupport'", "3", "'$oidcDesc'", "null", "null");
+    strval(CONFIG_TYPE_TEXT), "'OauthSupport'", "5", "'$oidcDesc'", "null", "null");
 
   $variable = "OidcSecret";
   $oidcPrompt = _('OIDC Secret');
   $oidcDesc = _('e.g. "cf13476f185b9f4b2e0ec962b52211adbdfc13aa"<br>Secret generated while registering your application.');
   $valueArray[$variable] = array("'$variable'", "null", "'$oidcPrompt'",
-    strval(CONFIG_TYPE_PASSWORD), "'OauthSupport'", "4", "'$oidcDesc'", "null", "null");
+    strval(CONFIG_TYPE_PASSWORD), "'OauthSupport'", "6", "'$oidcDesc'", "null", "null");
 
   $variable = "OidcRedirectURL";
   $oidcPrompt = _('Redirect URL');
   $oidcDesc = _('e.g. "http://fossology.application.url.com/repo"<br>URL of your fossology application.');
   $valueArray[$variable] = array("'$variable'", "null", "'$oidcPrompt'",
-    strval(CONFIG_TYPE_TEXT), "'OauthSupport'", "5", "'$oidcDesc'", "null", "null");
+    strval(CONFIG_TYPE_TEXT), "'OauthSupport'", "7", "'$oidcDesc'", "null", "null");
 
   $variable = "OidcDiscoveryURL";
   $oidcPrompt = _('OIDC Discovery URL');
   $oidcDesc = _('e.g. "http://oauth.com/.well-known/openid-configuration"<br>URL for OIDC Discovery document JSON to fill following fields upon save.');
   $valueArray[$variable] = array("'$variable'", "null", "'$oidcPrompt'",
-    strval(CONFIG_TYPE_TEXT), "'OauthSupport'", "6", "'$oidcDesc'", "null", "null");
+    strval(CONFIG_TYPE_TEXT), "'OauthSupport'", "8", "'$oidcDesc'", "null", "null");
 
   $variable = "OidcIssuer";
   $oidcPrompt = _('OIDC Token Issuer');
   $oidcDesc = _('e.g. "http://oauth.com"<br>Issuer for OIDC tokens.');
   $valueArray[$variable] = array("'$variable'", "null", "'$oidcPrompt'",
-    strval(CONFIG_TYPE_TEXT), "'OauthSupport'", "7", "'$oidcDesc'", "null", "null");
+    strval(CONFIG_TYPE_TEXT), "'OauthSupport'", "9", "'$oidcDesc'", "null", "null");
 
   $variable = "OidcAuthorizeURL";
   $oidcPrompt = _('OIDC Authorize URL');
   $oidcDesc = _('e.g. "http://oauth.com/authorization.oauth2"<br>URL for OAuth2 authorization endpoint.');
   $valueArray[$variable] = array("'$variable'", "null", "'$oidcPrompt'",
-    strval(CONFIG_TYPE_TEXT), "'OauthSupport'", "8", "'$oidcDesc'", "null", "null");
+    strval(CONFIG_TYPE_TEXT), "'OauthSupport'", "10", "'$oidcDesc'", "null", "null");
 
   $variable = "OidcAccessTokenURL";
   $oidcPrompt = _('OIDC Access Token URL');
   $oidcDesc = _('e.g. "http://oauth.com/token.oauth2"<br>URL for OAuth2 access token endpoint.');
   $valueArray[$variable] = array("'$variable'", "null", "'$oidcPrompt'",
-    strval(CONFIG_TYPE_TEXT), "'OauthSupport'", "9", "'$oidcDesc'", "null", "null");
+    strval(CONFIG_TYPE_TEXT), "'OauthSupport'", "11", "'$oidcDesc'", "null", "null");
 
   $variable = "OidcResourceURL";
   $oidcPrompt = _('OIDC User Info URL');
   $oidcDesc = _('e.g. "http://oauth.com/userinfo.oauth2"<br>URL for OAuth2 user info endpoint.');
   $valueArray[$variable] = array("'$variable'", "null", "'$oidcPrompt'",
-    strval(CONFIG_TYPE_TEXT), "'OauthSupport'", "10", "'$oidcDesc'", "null", "null");
+    strval(CONFIG_TYPE_TEXT), "'OauthSupport'", "12", "'$oidcDesc'", "null", "null");
 
   $variable = "OidcJwksURL";
   $oidcPrompt = _('OIDC JWKS URL');
   $oidcDesc = _('e.g. "http://oauth.com/jwks.oauth2"<br>URL for OIDC JWKS keys.');
   $valueArray[$variable] = array("'$variable'", "null", "'$oidcPrompt'",
-    strval(CONFIG_TYPE_TEXT), "'OauthSupport'", "11", "'$oidcDesc'", "null", "null");
+    strval(CONFIG_TYPE_TEXT), "'OauthSupport'", "13", "'$oidcDesc'", "null", "null");
 
   $variable = "OidcJwkAlgInject";
   $oidcPrompt = _('OIDC JWKS Algorithm inject');
-  $oidcDesc = _('Algorithm value to inject for JWKS. Leave empty to not modifiy.<br><a href="https://datatracker.ietf.org/doc/html/rfc7517#section-4.4">Check info</a>.');
+  $oidcDesc = _('Algorithm value to inject for JWKS. Leave empty to not modifiy.' .
+    '<br><a href="https://datatracker.ietf.org/doc/html/rfc7517#section-4.4">Check info</a>.');
   $valueArray[$variable] = array("'$variable'", "null", "'$oidcPrompt'",
-    strval(CONFIG_TYPE_TEXT), "'OauthSupport'", "12", "'$oidcDesc'", "null", "null");
+    strval(CONFIG_TYPE_TEXT), "'OauthSupport'", "14", "'$oidcDesc'", "null", "null");
 
   $variable = "OidcLogoutURL";
   $oidcPrompt = _('Logout URL');
   $oidcDesc = _('e.g. "http://oauth.com/logout.oauth2"<br>URL to redirect user to for logout.');
   $valueArray[$variable] = array("'$variable'", "null", "'$oidcPrompt'",
-    strval(CONFIG_TYPE_TEXT), "'OauthSupport'", "13", "'$oidcDesc'", "null", "null");
+    strval(CONFIG_TYPE_TEXT), "'OauthSupport'", "15", "'$oidcDesc'", "null", "null");
 
   /*  Banner Message */
   $variable = "BannerMsg";
@@ -355,21 +358,22 @@ function Populate_sysconfig()
   $variable = "CommonObligation";
   $contextNamePrompt = _("Common Obligation");
   $contextValue = "";
-  $contextDesc = _("Common Obligation Text, add line break at the end of the line");
+  $commonExObligations = _('you can add HTML line break, Also use json format for table rows');
+  $contextDesc = _("Common Obligation Text,". "$commonExObligations");
   $valueArray[$variable] = array("'$variable'", "'$contextValue'", "'$contextNamePrompt'",
     strval(CONFIG_TYPE_TEXTAREA), "'ReportText'", "2", "'$contextDesc'", "null", "null");
 
   $variable = "AdditionalObligation";
   $contextNamePrompt = _("Additional Obligation");
   $contextValue = "";
-  $contextDesc = _("Additional Obligation Text, add line break at the end of the line");
+  $contextDesc = _("Additional Obligation Text,". "$commonExObligations");
   $valueArray[$variable] = array("'$variable'", "'$contextValue'", "'$contextNamePrompt'",
     strval(CONFIG_TYPE_TEXTAREA), "'ReportText'", "3", "'$contextDesc'", "null", "null");
 
   $variable = "ObligationAndRisk";
   $contextNamePrompt = _("Obligation And Risk Assessment");
   $contextValue = "";
-  $contextDesc = _("Obligations and risk assessment, add line break at the end of the line");
+  $contextDesc = _("Obligations and risk assessment,". "$commonExObligations");
   $valueArray[$variable] = array("'$variable'", "'$contextValue'", "'$contextNamePrompt'",
     strval(CONFIG_TYPE_TEXTAREA), "'ReportText'", "4", "'$contextDesc'", "null", "null");
 
@@ -523,6 +527,13 @@ function Populate_sysconfig()
     strval(CONFIG_TYPE_BOOL), "'USER_READ_ONLY'", "1", "'$desc'",
     "'check_boolean'", "null");
 
+  $variable = "LicenseTypes";
+  $licenseTypeTitle = _("License Types");
+  $contextValue = "Permissive, Strong Copyleft, Weak Copyleft";
+  $licenseTypeDesc = _("add comma (,) separated different license types");
+  $valueArray[$variable] = array("'$variable'", "'$contextValue'", "'$licenseTypeTitle'",
+    strval(CONFIG_TYPE_TEXT), "'LICENSE'", "1", "'$licenseTypeDesc'", "null", "null");
+
   /* SoftwareHeritage agent config */
   $variable = "SwhURL";
   $prompt = _('SoftwareHeritage URL');
@@ -556,6 +567,47 @@ function Populate_sysconfig()
   $valueArray[$variable] = array("'$variable'", "''", "'$prompt'",
     strval(CONFIG_TYPE_PASSWORD), "'SWH'", "5", "'$desc'", "null", "null");
 
+  $variable = "ScAPIURL";
+  $prompt = _('Scanoss API url');
+  $desc = _('Set URL to SCANOSS API (blank for default osskb.org)');
+  $valueArray[$variable] = array("'$variable'",
+    "''", "'$prompt'",
+    strval(CONFIG_TYPE_TEXT), "'SSS'", "1", "'$desc'", "null", "null");
+
+  $variable = "ScToken";
+  $prompt = _('Access token');
+  $desc = _('Set token to access full service (blank for basic scan)');
+  $valueArray[$variable] = array("'$variable'",
+    "''", "'$prompt'",
+    strval(CONFIG_TYPE_TEXT), "'SSS'", "2", "'$desc'", "null", "null");
+
+  /* LicenseDB config */
+  $variable = "LicenseDBURL";
+  $prompt = _('LicenseDB URL');
+  $desc = _('URL to LicenseDB Server');
+  $valueArray[$variable] = array("'$variable'",
+    "''", "'$prompt'",
+    strval(CONFIG_TYPE_TEXT), "'LicenseDB'", "1", "'$desc'", "'check_url'", "null");
+
+  $variable = "LicenseDBBaseURL";
+  $prompt = _('LicenseDB API base URI');
+  $desc = _('Base URI for API calls e.g. /api/v1');
+  $valueArray[$variable] = array("'$variable'", "'/api/v1'",
+    "'$prompt'", strval(CONFIG_TYPE_TEXT), "'LicenseDB'", "2", "'$desc'", "null",
+    "null");
+
+  $variable = "LicenseDBContent";
+  $prompt = _('Export endpoint');
+  $desc = _('Endpoint to Export licenses in JSON e.g. /licenses/export');
+  $valueArray[$variable] = array("'$variable'", "'/licenses/export'", "'$prompt'",
+    strval(CONFIG_TYPE_TEXT), "'LicenseDB'", "3", "'$desc'", "null", "null");
+
+  $variable = "LicenseDBToken";
+  $prompt = _('Auth token For LicenseDB');
+  $desc = _('');
+  $valueArray[$variable] = array("'$variable'", "''", "'$prompt'",
+    strval(CONFIG_TYPE_PASSWORD), "'LicenseDB'", "5", "'$desc'", "null", "null");
+
   /* Doing all the rows as a single insert will fail if any row is a dupe.
    So insert each one individually so that new variables get added.
   */
@@ -569,9 +621,6 @@ function Populate_sysconfig()
     if (empty($VarRec)) {
       $sql = "INSERT INTO sysconfig (" . implode(",", $columns) . ") VALUES (" .
         implode(",", $values) . ");";
-      $result = pg_query($PG_CONN, $sql);
-      DBCheckResult($result, $sql, __FILE__, __LINE__);
-      pg_free_result($result);
     } else { // Values exist, update them
       $updateString = [];
       foreach ($columns as $index => $column) {
@@ -581,10 +630,10 @@ function Populate_sysconfig()
       }
       $sql = "UPDATE sysconfig SET " . implode(",", $updateString) .
         " WHERE variablename='$variable';";
-      $result = pg_query($PG_CONN, $sql);
-      DBCheckResult($result, $sql, __FILE__, __LINE__);
-      pg_free_result($result);
     }
+    $result = pg_query($PG_CONN, $sql);
+    DBCheckResult($result, $sql, __FILE__, __LINE__);
+    pg_free_result($result);
     unset($VarRec);
   }
 }
@@ -773,10 +822,40 @@ function check_IP($ip)
 
 /**
  * Set PYTHONPATH to appropriate location
+ * @return array<string> Return the path as an associative array.
  */
-function set_python_path()
+function set_python_path(): array
 {
   global $SysConf;
-  putenv("PYTHONPATH=/home/" . $SysConf['DIRECTORIES']['PROJECTUSER'] .
-      "/pythondeps");
+  $path = "/home/" . $SysConf['DIRECTORIES']['PROJECTUSER'] . "/pythondeps";
+  putenv("PYTHONPATH=$path");
+  return ["PYTHONPATH" => $path];
+}
+/**
+ * \brief Get system load average.
+ *
+ * Get no of cores using nproc command.
+ * Get load using sys_getloadavg
+ *
+ * \return button with different colors
+ */
+function get_system_load_average()
+{
+  // Get No.of cores
+  $cores = trim(shell_exec("nproc"));
+
+  // Get CPU load
+  $load = sys_getloadavg()[1];
+
+  $percentageOfLoad = ($load / $cores);
+
+  if ($percentageOfLoad < 0.30) {
+    $class = 'btn-success';
+  } else if ($percentageOfLoad < 0.60) {
+    $class = 'btn-warning';
+  } else {
+    $class = 'btn-danger';
+  }
+
+  return '<button type="button" aria-disabled="true" disabled class="btn '.$class.'">System Load</button>';
 }

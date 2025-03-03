@@ -1,21 +1,10 @@
 <?php
-/***************************************************************
- * Copyright (C) 2020 Siemens AG
- * Author: Gaurav Mishra <mishra.gaurav@siemens.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ***************************************************************/
+/*
+ SPDX-FileCopyrightText: © 2020 Siemens AG
+ Author: Gaurav Mishra <mishra.gaurav@siemens.com>
+
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 /**
  * @file
  * @brief Tests for DbHelper
@@ -30,9 +19,11 @@ if (session_status() == PHP_SESSION_NONE) {
 require_once dirname(dirname(dirname(dirname(__DIR__)))) .
   '/lib/php/Plugin/FO_Plugin.php';
 
+use Fossology\Lib\Dao\UploadDao;
 use Mockery as M;
 use Fossology\Lib\Db\ModernDbManager;
 use Fossology\UI\Api\Helper\DbHelper;
+use Fossology\UI\Api\Helper\RestHelper;
 use Fossology\Lib\Auth\Auth;
 use Fossology\UI\Api\Models\User;
 use Fossology\Lib\Dao\FolderDao;
@@ -68,16 +59,29 @@ class DbHelperTest extends \PHPUnit\Framework\TestCase
   private $folderDao;
 
   /**
+   * @var UploadDao $uploadDao
+   * UploadDao object to test
+   */
+  private $uploadDao;
+
+  /**
    * @brief Setup test objects
    * @see PHPUnit_Framework_TestCase::setUp()
    */
   protected function setUp() : void
   {
+    global $container;
+    $restHelper = M::mock(RestHelper::class);
+    $container = M::mock('ContainerBuilder');
     $this->dbManager = M::mock(ModernDbManager::class);
     $this->folderDao = M::mock(FolderDao::class);
+    $this->uploadDao = M::mock(UploadDao::class);
 
-    $this->dbHelper = new DbHelper($this->dbManager, $this->folderDao);
+    $this->dbHelper = new DbHelper($this->dbManager, $this->folderDao,
+      $this->uploadDao);
     $this->assertCountBefore = \Hamcrest\MatcherAssert::getCount();
+    $container->shouldReceive('get')->withArgs(array(
+      'helper.restHelper'))->andReturn($restHelper);
   }
 
   /**
@@ -114,8 +118,8 @@ class DbHelperTest extends \PHPUnit\Framework\TestCase
       $row = [
         'user_pk' => $i, 'user_name' => "user$i", 'user_desc' => "user $i",
         'user_email' => "user$i@local", 'email_notify' => 'y',
-        'root_folder_fk' => 2, 'user_perm' => $perm_list[$i],
-        'user_agent_list' => $agent_list[$i]
+        'root_folder_fk' => 2, 'group_fk' => 2, 'user_perm' => $perm_list[$i],
+        'user_agent_list' => $agent_list[$i], 'default_bucketpool_fk' => 2
       ];
       $userRows[$i] = $row;
     }
@@ -136,10 +140,10 @@ class DbHelperTest extends \PHPUnit\Framework\TestCase
       if ($currentUser === null || $row['user_pk'] == $currentUser) {
         $user = new User($row["user_pk"], $row["user_name"], $row["user_desc"],
             $row["user_email"], $row["user_perm"], $row["root_folder_fk"],
-          $row["email_notify"], $row["user_agent_list"]);
+          $row["email_notify"], $row["user_agent_list"], $row['group_fk'], $row["default_bucketpool_fk"]);
       } else {
         $user = new User($row["user_pk"], $row["user_name"], $row["user_desc"],
-          null, null, null, null, null);
+          null, null, null, null, null, null);
       }
       $users[$row["user_pk"]] = $user->getArray();
     }
@@ -159,8 +163,8 @@ class DbHelperTest extends \PHPUnit\Framework\TestCase
     $_SESSION[Auth::USER_LEVEL] = Auth::PERM_ADMIN;
 
     $sql = 'SELECT user_pk, user_name, user_desc, user_email,
-                  email_notify, root_folder_fk, user_perm, user_agent_list ' .
-      'FROM users;';
+                  email_notify, root_folder_fk, group_fk, user_perm, user_agent_list, ' .
+      'default_bucketpool_fk FROM users;';
     $statement = DbHelper::class . "::getUsers.getAllUsers";
     $userRows = $this->generateUserRow();
 
@@ -172,7 +176,12 @@ class DbHelperTest extends \PHPUnit\Framework\TestCase
     $expectedUsers = array_values($this->generateUserFromRow($userRows));
     $actualUsers = $this->dbHelper->getUsers();
 
-    $this->assertEquals($expectedUsers, $actualUsers);
+    $allUsers = array();
+    foreach ($actualUsers as $user) {
+      $allUsers[] = $user->getArray();
+    }
+
+    $this->assertEquals($expectedUsers, $allUsers);
   }
 
   /**
@@ -188,8 +197,8 @@ class DbHelperTest extends \PHPUnit\Framework\TestCase
     $_SESSION[Auth::USER_LEVEL] = Auth::PERM_WRITE;
 
     $sql = 'SELECT user_pk, user_name, user_desc, user_email,
-                  email_notify, root_folder_fk, user_perm, user_agent_list ' .
-      'FROM users;';
+                  email_notify, root_folder_fk, group_fk, user_perm, user_agent_list, ' .
+      'default_bucketpool_fk FROM users;';
     $statement = DbHelper::class . "::getUsers.getAllUsers";
     $userRows = $this->generateUserRow();
 
@@ -201,8 +210,11 @@ class DbHelperTest extends \PHPUnit\Framework\TestCase
     $expectedUsers = array_values($this->generateUserFromRow($userRows,
       $userId));
     $actualUsers = $this->dbHelper->getUsers();
-
-    $this->assertEquals($expectedUsers, $actualUsers);
+    $allUsers = array();
+    foreach ($actualUsers as $user) {
+      $allUsers[] = $user->getArray();
+    }
+    $this->assertEquals($expectedUsers, $allUsers);
   }
 
   /**
@@ -218,7 +230,7 @@ class DbHelperTest extends \PHPUnit\Framework\TestCase
     $_SESSION[Auth::USER_LEVEL] = Auth::PERM_ADMIN;
 
     $sql = "SELECT user_pk, user_name, user_desc, user_email,
-                email_notify, root_folder_fk, user_perm, user_agent_list FROM users
+                email_notify, root_folder_fk, group_fk, user_perm, user_agent_list, default_bucketpool_fk FROM users
                 WHERE user_pk = $1;";
     $statement = DbHelper::class . "::getUsers.getSpecificUser";
     $userRows = $this->generateUserRow();
@@ -231,7 +243,11 @@ class DbHelperTest extends \PHPUnit\Framework\TestCase
     $expectedUsers = $this->generateUserFromRow($userRows, $userId);
     $actualUsers = $this->dbHelper->getUsers($userId);
 
-    $this->assertEquals([$expectedUsers[$userId]], $actualUsers);
+    $allUsers = array();
+    foreach ($actualUsers as $user) {
+      $allUsers[] = $user->getArray();
+    }
+    $this->assertEquals([$expectedUsers[$userId]], $allUsers);
   }
 
   /**
@@ -248,7 +264,7 @@ class DbHelperTest extends \PHPUnit\Framework\TestCase
     $_SESSION[Auth::USER_LEVEL] = Auth::PERM_WRITE;
 
     $sql = "SELECT user_pk, user_name, user_desc, user_email,
-                email_notify, root_folder_fk, user_perm, user_agent_list FROM users
+                email_notify, root_folder_fk, group_fk, user_perm, user_agent_list, default_bucketpool_fk FROM users
                 WHERE user_pk = $1;";
     $statement = DbHelper::class . "::getUsers.getSpecificUser";
     $userRows = $this->generateUserRow();
@@ -261,6 +277,10 @@ class DbHelperTest extends \PHPUnit\Framework\TestCase
     $expectedUsers = $this->generateUserFromRow($userRows, $userId);
     $actualUsers = $this->dbHelper->getUsers($fetchId);
 
-    $this->assertEquals([$expectedUsers[$fetchId]], $actualUsers);
+    $allUsers = array();
+    foreach ($actualUsers as $user) {
+      $allUsers[] = $user->getArray();
+    }
+    $this->assertEquals([$expectedUsers[$fetchId]], $allUsers);
   }
 }

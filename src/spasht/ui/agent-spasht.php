@@ -1,25 +1,11 @@
 <?php
-/***********************************************************
- * Copyright (C) 2019
- * Author: Vivek Kumar<vvksindia@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ***********************************************************/
+/*
+ SPDX-FileCopyrightText: © 2019 Vivek Kumar <vvksindia@gmail.com>
+ Author: Vivek Kumar<vvksindia@gmail.com>
 
-use Fossology\Lib\Auth\Auth;
-use Fossology\Lib\Dao\AgentDao;
-use Fossology\Lib\Db\DbManager;
+ SPDX-License-Identifier: GPL-2.0-only
+*/
+
 use Fossology\Lib\Plugin\AgentPlugin;
 
 include_once(dirname(__DIR__) . "/agent/version.php");
@@ -54,7 +40,8 @@ class SpashtAgentPlugin extends AgentPlugin
    * @copydoc Fossology::Lib::Plugin::AgentPlugin::AgentAdd()
    * @see Fossology::Lib::Plugin::AgentPlugin::AgentAdd()
    */
-  public function AgentAdd($jobId, $uploadId, &$errorMsg, $dependencies=array(), $arguments=null)
+  public function AgentAdd($jobId, $uploadId, &$errorMsg, $dependencies=[],
+      $arguments=null, $request=null, $unpackArgs=null)
   {
     $dependencies[] = "agent_adj2nest";
 
@@ -64,7 +51,7 @@ class SpashtAgentPlugin extends AgentPlugin
     }
 
     $args = is_array($arguments) ? '' : $arguments;
-    return $this->doAgentAdd($jobId, $uploadId, $errorMsg, $dependencies, $uploadId, $args);
+    return $this->doAgentAdd($jobId, $uploadId, $errorMsg, $dependencies, $uploadId, $args, $request);
   }
 
 

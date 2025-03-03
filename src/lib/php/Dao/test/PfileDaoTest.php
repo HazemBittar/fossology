@@ -1,21 +1,10 @@
 <?php
-/***************************************************************
- Copyright (C) 2020 Siemens AG
+/*
+ SPDX-FileCopyrightText: © 2020 Siemens AG
  Author: Gaurav Mishra <mishra.gaurav@siemens.com>
 
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- version 2 as published by the Free Software Foundation.
-
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License along
- with this program; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- ***************************************************************/
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 namespace Fossology\Lib\Dao;
 
@@ -28,7 +17,7 @@ use Monolog\Logger;
  * Location of test data from SPDX for license conclusions
  */
 define("SPDX_TEST_DATA", dirname(dirname(dirname(dirname(__DIR__)))) .
-  "/spdx2/agent_tests/Functional/fo_report.sql");
+  "/spdx/agent_tests/Functional/fo_report.sql");
 
 /**
  * @class PfileDaoTest
@@ -142,6 +131,8 @@ class PfileDaoTest extends \PHPUnit\Framework\TestCase
    */
   public function testGetScannerFindings()
   {
+    echo dirname(dirname(dirname(dirname(__DIR__)))) .
+      "/spdx2/agent_tests/Functional/fo_report.sql";
     $this->testDb->createPlainTables(['license_ref', 'license_file']);
     $this->testDb->insertData(['license_ref', 'license_file']);
 
@@ -265,5 +256,31 @@ reserved. permission is hereby granted to copy and distribute this
     $this->assertEquals($expectedSecondFinding, $actualSecondFinding);
     $this->assertEquals($expectedThirdFinding, $actualThirdFinding);
     $this->assertEquals($expectedNoFinding, $actualNoFinding);
+  }
+  /**
+   * @test
+   *    AgentsDao::haveConclusions()
+   * -# Ensure a clearing_decision is created before.
+   * -# Verify that the boolean returned is true.
+   */
+  public function testHaveConclusionsTrue()
+  {
+    $this->testDb->createPlainTables(['clearing_decision']);
+    $this->testDb->insertData(['clearing_decision'], false, SPDX_TEST_DATA);
+    $result = $this->pfileDao->haveConclusions(2, 2);
+    $this->assertTrue($result);
+  }
+  /**
+   * @test
+   *    AgentsDao::haveConclusions()
+   * -# Ensure a clearing_decision is created before.
+   * -# Verify that the boolean returned is false.
+   */
+  public function testHaveConclusionsFalse()
+  {
+    $this->testDb->createPlainTables(['clearing_decision']);
+    $this->testDb->insertData(['clearing_decision'], false, SPDX_TEST_DATA);
+    $result = $this->pfileDao->haveConclusions(100, 100);
+    $this->assertFalse($result);
   }
 }

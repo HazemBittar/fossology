@@ -1,20 +1,9 @@
 <?php
 /*
-Copyright (C) 2014-2016, Siemens AG
-Author: Andreas Würl
+ SPDX-FileCopyrightText: © 2014-2016 Siemens AG
+ Author: Andreas Würl
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-version 2 as published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ SPDX-License-Identifier: GPL-2.0-only
 */
 
 namespace Fossology\Lib\Plugin;
@@ -22,6 +11,7 @@ namespace Fossology\Lib\Plugin;
 use Fossology\Lib\Auth\Auth;
 use Fossology\Lib\UI\Component\Menu;
 use Fossology\Lib\UI\Component\MicroMenu;
+use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\HttpFoundation\Request;
@@ -50,6 +40,8 @@ abstract class DefaultPlugin implements Plugin
   private $session;
   /** @var Logger */
   private $logger;
+  /** @var Logger */
+  public $fileLogger;
   /** @var Menu */
   private $menu;
   /** @var MicroMenu */
@@ -73,6 +65,10 @@ abstract class DefaultPlugin implements Plugin
   private $MenuList = NULL;
   private $MenuOrder = 0;
   private $MenuTarget = NULL;
+  /**
+   * @var string
+   */
+  private $logdir;
 
   public function __construct($name, $parameters = array())
   {
@@ -83,12 +79,19 @@ abstract class DefaultPlugin implements Plugin
     foreach ($parameters as $key => $value) {
       $this->setParameter($key, $value);
     }
-
+    global $SysConf;
+    if (array_key_exists('DIRECTORIES', $SysConf) && array_key_exists('LOGDIR', $SysConf['DIRECTORIES'])) {
+      $this->logdir = $SysConf['DIRECTORIES']['LOGDIR'];
+    } else {
+      $this->logdir = sys_get_temp_dir();
+    }
     global $container;
     $this->container = $container;
     $this->session = $this->getObject('session');
     $this->renderer = $this->getObject('twig.environment');
     $this->logger = $this->getObject('logger');
+    $this->fileLogger = new Logger(get_called_class());
+    $this->fileLogger->pushHandler(new StreamHandler($this->logdir . DIRECTORY_SEPARATOR . 'plugin.log', Logger::DEBUG));
     $this->menu = $this->getObject('ui.component.menu');
     $this->microMenu = $this->getObject('ui.component.micromenu');
   }
@@ -360,6 +363,7 @@ abstract class DefaultPlugin implements Plugin
     $styles .= "<link rel='stylesheet' href='css/jquery.dataTables.css'>\n";
     $styles .= "<link rel='stylesheet' href='css/fossology.css'>\n";
     $styles .= "<link rel='stylesheet' href='css/bootstrap/bootstrap.min.css'>\n";
+    $styles .= "<link rel='stylesheet' href='css/bootstrap-icons.css'>\n";
     $styles .= "<link rel='icon' type='image/x-icon' href='favicon.ico'>\n";
     $styles .= "<link rel='shortcut icon' type='image/x-icon' href='favicon.ico'>\n";
 

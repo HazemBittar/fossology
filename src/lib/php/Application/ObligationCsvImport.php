@@ -1,19 +1,8 @@
 <?php
 /*
-Copyright (C) 2014-2017, Siemens AG
+ SPDX-FileCopyrightText: © 2014-2017 Siemens AG
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-version 2 as published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ SPDX-License-Identifier: GPL-2.0-only
 */
 
 namespace Fossology\Lib\Application;
@@ -91,7 +80,7 @@ class ObligationCsvImport
    * @return string message Error message, if any. Otherwise
    *         `Read csv: <count> licenses` on success.
    */
-  public function handleFile($filename)
+  public function handleFile($filename, $fileExtension)
   {
     if (!is_file($filename) || ($handle = fopen($filename, 'r')) === false) {
       return _('Internal error');
@@ -99,20 +88,57 @@ class ObligationCsvImport
     $cnt = -1;
     $msg = '';
     try {
-      while (($row = fgetcsv($handle,0,$this->delimiter,$this->enclosure)) !== false) {
-        $log = $this->handleCsv($row);
-        if (!empty($log)) {
-          $msg .= "$log\n";
+      if ($fileExtension == 'csv') {
+        while (($row = fgetcsv($handle,0,$this->delimiter,$this->enclosure)) !== false) {
+          $log = $this->handleCsv($row);
+          if (!empty($log)) {
+            $msg .= "$log\n";
+          }
+          $cnt++;
         }
-        $cnt++;
+        $msg .= _('Read csv').(": $cnt ")._('obligations');
+      } else {
+        $jsonContent = fread($handle, filesize($filename));
+        $data = json_decode($jsonContent, true);
+        if ($data === null && json_last_error() !== JSON_ERROR_NONE) {
+          $msg .= "Error decoding JSON: " . json_last_error_msg()."\n";
+        }
+        foreach ($data as $row) {
+          $log = $this->handleCsvObligation($this->handleRowJson($row));
+          if (!empty($log)) {
+            $msg .= "$log\n";
+          }
+        }
+        $msg .= _('Read json').(":". count($data) ." ")._('obligations');
       }
-      $msg .= _('Read csv').(": $cnt ")._('obligations');
     } catch(\Exception $e) {
       fclose($handle);
       return $msg .= _('Error while parsing file').': '.$e->getMessage();
     }
     fclose($handle);
     return $msg;
+  }
+
+  /**
+   * Handle a single row read from the JSON.
+   * If the key matches values from alias array then replace it with key
+   * @param array $row
+   * @return array $newArray
+   */
+  function handleRowJson($row)
+  {
+    $newArray = array();
+    foreach ($row as $key => $value) {
+      $newKey = $key;
+      foreach ($this->alias as $aliasKey => $aliasValues) {
+        if (in_array($key, $aliasValues)) {
+          $newKey = $aliasKey;
+          break;
+        }
+      }
+      $newArray[$newKey] = $value;
+    }
+    return $newArray;
   }
 
   /**
@@ -173,15 +199,14 @@ class ObligationCsvImport
    * @param array $listFromCsv List of obligations from CSV
    * @param bool $candidate    Is a candidate obligation?
    * @param array $row         Unused
-   * @return number strcmp() diff
+   * @return int strcmp() diff
    */
   private function compareLicList($exists, $listFromCsv, $candidate, $row)
   {
     $getList = $this->obligationMap->getLicenseList($exists, $candidate);
     $listFromDb = $this->reArrangeString($getList);
     $listFromCsv = $this->reArrangeString($listFromCsv);
-    $diff = strcmp($listFromDb, $listFromCsv);
-    return $diff;
+    return strcmp($listFromDb, $listFromCsv);
   }
 
   /**
@@ -194,8 +219,7 @@ class ObligationCsvImport
   {
     $string = explode(";", $string);
     sort($string);
-    $string = implode(",", $string);
-    return $string;
+    return implode(",", $string);
   }
 
   /**

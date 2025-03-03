@@ -1,19 +1,8 @@
 <?php
 /*
-Copyright (C) 2014-2015, Siemens AG
+ SPDX-FileCopyrightText: © 2014-2015 Siemens AG
 
-This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License
-version 2 as published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ SPDX-License-Identifier: GPL-2.0-only
 */
 
 use Fossology\Lib\Dao\ClearingDao;
@@ -28,7 +17,7 @@ use Fossology\Lib\Db\DbManager;
 use Fossology\Lib\Test\TestPgDb;
 use Monolog\Logger;
 
-class MonkBulkTest extends \PHPUnit\Framework\TestCase
+class bulkTest extends \PHPUnit\Framework\TestCase
 {
   /** @var TestPgDb */
   private $testDb;
@@ -74,8 +63,8 @@ class MonkBulkTest extends \PHPUnit\Framework\TestCase
 
     $agentName = "monkbulk";
 
-    $agentDir = dirname(dirname(__DIR__));
-    $execDir = __DIR__;
+    $agentDir = dirname(__DIR__,4).'/build/src/monk';
+    $execDir = $agentDir.'/agent';
     system("install -D $agentDir/VERSION-monkbulk $sysConf/mods-enabled/$agentName/VERSION");
 
     $pipeFd = popen("echo '0\n$bulkId\n0' | $execDir/$agentName -c $sysConf --userID=$userId --groupID=$groupId --jobId=$jobId --scheduler_start", "r");

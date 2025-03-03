@@ -1,8 +1,6 @@
-{# Copyright 2014-2017 Siemens AG
+{# SPDX-FileCopyrightText: © 2014-2017 Siemens AG
 
-   Copying and distribution of this file, with or without modification,
-   are permitted in any medium without royalty provided the copyright notice and this notice are preserved.
-   This file is offered as-is, without any warranty.
+   SPDX-License-Identifier: FSFAP
 #}
 
 function createTableBase{{ table.type }}(activated) {
@@ -38,6 +36,23 @@ function createTableBase{{ table.type }}(activated) {
       aoData.push({ "name":"agent", "value": "{{ table.agentId }}" });
       aoData.push({ "name":"type", "value": "{{ table.type }}" });
       aoData.push({ "name":"filter", "value": "{{ table.filter }}" });
+      if(activated)
+      {
+        if($('#inverseSearchActivated{{table.type}}').is(':checked'))
+        {
+          aoData.push( { "name":"isInverse", "value": "true"} );
+        } else {
+          aoData.push( { "name":"isInverse", "value": "false" } );
+        }
+      } else {
+        if($('#inverseSearchDeactivated{{table.type}}').is(':checked'))
+        {
+          aoData.push( { "name":"isInverse", "value": "true"} );
+        } else {
+          aoData.push( { "name":"isInverse", "value": "false" } );
+        }
+      }
+      
       $.getJSON(sSource, aoData, fnCallback).fail(function() {
         if (confirm("You are not logged in. Go to login page?"))
           window.location.href = "?mod=auth";
@@ -238,6 +253,7 @@ function delete{{ table.type }}(upload, item, hash, kind) {
       success: function(data) {
         $("#delete{{ table.type }}" + hash).hide();
         $("#update{{ table.type }}" + hash).attr("style","display:inline !important;");
+        $("tr.row"+hash+" td").attr("style","background-color:#fdff32 !important");
       },
       error: function(errorResponse) {
         alert(errorResponse.responseText);
@@ -255,6 +271,7 @@ function undo{{ table.type }}(upload, item, hash, kind) {
         $("#delete{{ table.type }}" + hash).show();
         $("#update{{ table.type }}" + hash).hide();
         $("#deleteBySelect{{ table.type }}" + hash).prop('checked', false);
+        $("tr.row"+hash+" td").attr("style","background-color:''");
       },
       error: function(errorResponse) {
         alert(errorResponse.responseText);

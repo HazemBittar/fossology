@@ -1,21 +1,10 @@
 <?php
 /*
- Copyright (C) 2010-2012 Hewlett-Packard Development Company, L.P.
- Copyright (C) 2015 Siemens AG
+ SPDX-FileCopyrightText: © 2010-2012 Hewlett-Packard Development Company, L.P.
+ SPDX-FileCopyrightText: © 2015 Siemens AG
 
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- version 2 as published by the Free Software Foundation.
-
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License along
- with this program; if not, write to the Free Software Foundation, Inc.,
- 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- */
+ SPDX-License-Identifier: GPL-2.0-only
+*/
 
 /**
  * cliParams
@@ -24,7 +13,7 @@
  *
  * @group ununpack
  */
-require_once './utility.php';
+require_once __DIR__.'/utility.php';
 
 use Fossology\Lib\Test\TestPgDb;
 use Fossology\Lib\Test\TestInstaller;
@@ -66,7 +55,7 @@ class cliParamsTest4Ununpack extends \PHPUnit\Framework\TestCase
       $this->markTestSkipped();
 
     $this->testDb = new TestPgDb('ununpackNormal');
-    $this->agentDir = dirname(dirname(__DIR__))."/";
+    $this->agentDir = dirname(__DIR__, 4)."/build/src/ununpack";
 
     $sysConf = $this->testDb->getFossSysConf();
 
@@ -611,5 +600,77 @@ class cliParamsTest4Ununpack extends \PHPUnit\Framework\TestCase
     exec($command);
     /* check if the result is ok? */
     $this->assertFileExists("$TEST_RESULT_PATH/test.cpio.dir/ununpack");
+  }
+
+  /**
+   * unpack ZST file
+   * @brief Check for ZST file
+   * @test
+   * -# Pass the files to the agent
+   * -# Check if the contents of files get unpacked
+   */
+  function testNormalZst(){
+    global $TEST_DATA_PATH;
+    global $TEST_RESULT_PATH;
+
+    /* archive file */
+    $command = $this->ununpack." -qCR $TEST_DATA_PATH/".
+                  "test.zst -d $TEST_RESULT_PATH";
+    exec($command);
+    /* check if the result is ok? select one file to confirm */
+    $this->assertFileExists("$TEST_RESULT_PATH/test.zst.dir/test.tar");
+
+    // delete the directory ./test_result
+    exec("/bin/rm -rf $TEST_RESULT_PATH");
+    $isDir = is_dir($TEST_RESULT_PATH);
+    $this->assertTrue(!$isDir);
+  }
+
+  /**
+   * unpack lz4 file
+   * @brief Check for lz4 file
+   * @test
+   * -# Pass the files to the agent
+   * -# Check if the contents of files get unpacked
+   */
+  function testNormalLz4(){
+    global $TEST_DATA_PATH;
+    global $TEST_RESULT_PATH;
+
+    /* archive file */
+    $command = $this->ununpack." -qCR $TEST_DATA_PATH/".
+                  "test.lz4 -d $TEST_RESULT_PATH";
+    exec($command);
+    /* check if the result is ok? select one file to confirm */
+    $this->assertFileExists("$TEST_RESULT_PATH/test.lz4.dir/test.tar");
+
+    // delete the directory ./test_result
+    exec("/bin/rm -rf $TEST_RESULT_PATH");
+    $isDir = is_dir($TEST_RESULT_PATH);
+    $this->assertTrue(!$isDir);
+  }
+
+  /**
+   * unpack lzma file
+   * @brief Check for lzma file
+   * @test
+   * -# Pass the files to the agent
+   * -# Check if the contents of files get unpacked
+   */
+  function testNormalLzma(){
+    global $TEST_DATA_PATH;
+    global $TEST_RESULT_PATH;
+
+    /* archive file */
+    $command = $this->ununpack." -qCR $TEST_DATA_PATH/".
+                  "test.lzma -d $TEST_RESULT_PATH";
+    exec($command);
+    /* check if the result is ok? select one file to confirm */
+    $this->assertFileExists("$TEST_RESULT_PATH/test.lzma.dir/test.tar");
+
+    // delete the directory ./test_result
+    exec("/bin/rm -rf $TEST_RESULT_PATH");
+    $isDir = is_dir($TEST_RESULT_PATH);
+    $this->assertTrue(!$isDir);
   }
 }
